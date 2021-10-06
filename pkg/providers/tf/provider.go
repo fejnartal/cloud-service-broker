@@ -88,7 +88,13 @@ func (provider *terraformProvider) Update(ctx context.Context, provisionContext 
 		return models.ServiceInstanceDetails{}, err
 	}
 
-	err := provider.jobRunner.Update(ctx, tfId, provisionContext.ToMap())
+	action := provider.serviceDefinition.ProvisionSettings
+	nw, err := wrapper.NewWorkspace(provisionContext.ToMap(), action.Template, action.Templates, []wrapper.ParameterMapping{}, []string{}, []wrapper.ParameterMapping{})
+	if err != nil {
+		panic(err)
+	}
+
+	err = provider.jobRunner.Update(ctx, tfId, provisionContext.ToMap(), nw)
 
 	return models.ServiceInstanceDetails{
 		OperationId:   tfId,

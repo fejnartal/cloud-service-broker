@@ -117,7 +117,12 @@ func (pak *BrokerPakReader) ExtractPlatformBins(destination string) error {
 	}
 
 	bindir := path.Join("bin", curr.Os, curr.Arch)
-	return pak.contents.Extract(bindir, destination)
+	err = pak.contents.Extract(bindir, destination)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // OpenBrokerPak opens the file at the given path as a BrokerPakReader.

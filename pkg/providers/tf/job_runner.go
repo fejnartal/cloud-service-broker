@@ -220,7 +220,7 @@ func (runner *TfJobRunner) Create(ctx context.Context, id string) error {
 	return nil
 }
 
-func (runner *TfJobRunner) Update(ctx context.Context, id string, templateVars map[string]interface{}) error {
+func (runner *TfJobRunner) Update(ctx context.Context, id string, templateVars map[string]interface{}, nw *wrapper.TerraformWorkspace) error {
 	deployment, err := db_service.GetTerraformDeploymentById(ctx, id)
 	if err != nil {
 		return err
@@ -230,6 +230,7 @@ func (runner *TfJobRunner) Update(ctx context.Context, id string, templateVars m
 	if err != nil {
 		return err
 	}
+	workspace.Modules = nw.Modules
 
 	inputList, err := workspace.Modules[0].Inputs()
 	if err != nil {

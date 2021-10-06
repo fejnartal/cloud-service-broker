@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/cloudfoundry-incubator/cloud-service-broker/internal/zippy"
 	"github.com/cloudfoundry-incubator/cloud-service-broker/pkg/providers/tf"
@@ -152,11 +153,37 @@ func (m *Manifest) packSources(tmp string) error {
 
 func (m *Manifest) packBinaries(tmp string) error {
 	for _, platform := range m.Platforms {
-		platformPath := filepath.Join(tmp, "bin", platform.Os, platform.Arch)
 		for _, resource := range m.TerraformResources {
-			log.Println("\t", resource.Url(platform), "->", platformPath)
-			if err := getter.GetAny(platformPath, resource.Url(platform)); err != nil {
-				return err
+			if strings.HasPrefix(resource.Name, "terraform-provider-") {
+				platformPath := filepath.Join(
+					tmp,
+					"bin",
+					platform.Os,
+					platform.Arch,
+					"registry.terraform.io",
+				)
+
+				short := resource.Name[19:]
+				target := fmt.Sprintf("%s_%s", platform.Os, platform.Arch)
+
+				pp1 := filepath.Join(platformPath, "hashicorp", short, resource.Version, target)
+				log.Println("\t", resource.Url(platform), "->", pp1)
+				if err := getter.GetAny(pp1, resource.Url(platform)); err != nil {
+					return err
+				}
+
+				// Needed for 0.12 to 0.13 migration. Could not get a symlink to work.
+				pp2 := filepath.Join(platformPath, "-", short, resource.Version, target)
+				log.Println("\t", resource.Url(platform), "->", pp2)
+				if err := getter.GetAny(pp2, resource.Url(platform)); err != nil {
+					return err
+				}
+			} else {
+				platformPath := filepath.Join(tmp, "bin", platform.Os, platform.Arch)
+				log.Println("\t", resource.Url(platform), "->", platformPath)
+				if err := getter.GetAny(platformPath, resource.Url(platform)); err != nil {
+					return err
+				}
 			}
 		}
 	}
