@@ -17,6 +17,11 @@ package tf
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 
 	"code.cloudfoundry.org/lager"
 	"github.com/cloudfoundry-incubator/cloud-service-broker/db_service/models"
@@ -139,16 +144,53 @@ func (provider *terraformProvider) Update(ctx context.Context, provisionContext 
 		return models.ServiceInstanceDetails{}, err
 	}
 
+	// Need to perform terraform show
+	deploymentHCL, err := provider.jobRunner.Show(ctx, tfId, nil)
+	if err != nil {
+		return models.ServiceInstanceDetails{}, err
+	}
+
+	// Need to remove the outputs block from show result
+	splitHcl := strings.Split(deploymentHCL, "Outputs")
+	subsumedParameters := make(map[string]interface{})
+
+	// Get the previous values and assign to a map
+	parsedConfig, diags := hclwrite.ParseConfig([]byte(splitHcl[0]), "", hcl.InitialPos)
+	if diags.HasErrors() {
+		return models.ServiceInstanceDetails{}, fmt.Errorf("%v", diags.Error())
+	}
+
+	for _, block := range parsedConfig.Body().Blocks() {
+		if block.Type() == "resource" && stringInSlice("azurerm_mssql_database", block.Labels()) {
+			subsumedParameters["name"] = strings.Trim(strings.TrimSpace(string(block.Body().GetAttribute("name").Expr().BuildTokens(nil).Bytes())), "\"")
+			maxSizeInt, _ := strconv.Atoi(strings.TrimSpace(string(block.Body().GetAttribute("max_size_gb").Expr().BuildTokens(nil).Bytes())))
+			subsumedParameters["max_size_gb"] = maxSizeInt
+		}
+	}
+
+	// Set the values in provisionContext to match the previous values
+	provisionContext.SetValue("max_storage_gb", subsumedParameters["max_size_gb"])
+	provisionContext.SetValue("db_name", subsumedParameters["name"])
+
 	if err := workspaceUpdater.UpdateWorkspaceHCL(provider.store, provider.serviceDefinition.ProvisionSettings, provisionContext, tfId); err != nil {
 		return models.ServiceInstanceDetails{}, err
 	}
 
-	err := provider.jobRunner.Update(ctx, tfId, provisionContext.ToMap())
+	err = provider.jobRunner.Update(ctx, tfId, provisionContext.ToMap())
 
 	return models.ServiceInstanceDetails{
 		OperationId:   tfId,
 		OperationType: models.UpdateOperationType,
 	}, err
+}
+
+func stringInSlice(subject string, list []string) bool {
+	for _, item := range list {
+		if item == subject {
+			return true
+		}
+	}
+	return false
 }
 
 // Bind creates a new backing Terraform job and executes it, waiting on the result.

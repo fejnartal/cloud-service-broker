@@ -235,6 +235,11 @@ func (runner *TfJobRunner) Update(ctx context.Context, id string, templateVars m
 
 	workspace.Instances[0].Configuration = limitedConfig
 
+	err = workspace.Plan(ctx)
+	if err != nil {
+		return err
+	}
+
 	if err := runner.markJobStarted(deployment, models.UpdateOperationType); err != nil {
 		return err
 	}
@@ -245,6 +250,41 @@ func (runner *TfJobRunner) Update(ctx context.Context, id string, templateVars m
 	}()
 
 	return nil
+}
+
+func (runner *TfJobRunner) Show(ctx context.Context, id string, templateVars map[string]interface{}) (string, error) {
+	deployment, err := runner.store.GetTerraformDeployment(id)
+	if err != nil {
+		return "", err
+	}
+
+	workspace, err := runner.hydrateWorkspace(ctx, deployment)
+	if err != nil {
+		return "", err
+	}
+
+	// we may be doing this twice in the case of dynamic HCL, that is fine.
+	inputList, err := workspace.Modules[0].Inputs()
+	if err != nil {
+		return "", err
+	}
+
+	limitedConfig := make(map[string]interface{})
+	for _, name := range inputList {
+		limitedConfig[name] = templateVars[name]
+	}
+
+	workspace.Instances[0].Configuration = limitedConfig
+
+	if err := runner.markJobStarted(deployment, models.UpdateOperationType); err != nil {
+		return "", err
+	}
+
+	var tfOutput string
+	tfOutput, err = workspace.Show(ctx)
+	runner.operationFinished(err, workspace, deployment)
+
+	return tfOutput, nil
 }
 
 // Destroy runs `terraform destroy` on the given workspace in the background.

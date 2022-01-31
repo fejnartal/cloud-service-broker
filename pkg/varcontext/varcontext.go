@@ -40,6 +40,10 @@ func (vc *VarContext) validate(key, typeName string, validator func(interface{})
 	}
 }
 
+func (vc *VarContext) SetValue(key string, value interface{}) {
+	vc.context[key] = value
+}
+
 // GetString gets a string from the context, storing an error if the key doesn't
 // exist or the variable couldn't be converted to a string.
 func (vc *VarContext) GetString(key string) (res string) {
