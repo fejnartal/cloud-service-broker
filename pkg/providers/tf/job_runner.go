@@ -374,10 +374,13 @@ func (runner *TfJobRunner) MigrateTo013(ctx context.Context, id string) error {
 		return err
 	}
 
+	// Create the FS of TF state and .tf files.
 	workspace, err := runner.hydrateWorkspace(ctx, deployment)
 	if err != nil {
 		return err
 	}
+
+	// Get the current statefile version, if greater than current - skip
 	stateVersion, err := workspace.StateVersion()
 	if err != nil {
 		return err
@@ -386,6 +389,7 @@ func (runner *TfJobRunner) MigrateTo013(ctx context.Context, id string) error {
 		return nil
 	}
 
+	// Perform the TF plan/apply
 	err = workspace.MigrateTo013(ctx)
 	if err != nil {
 		return err

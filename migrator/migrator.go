@@ -26,10 +26,13 @@ type MigrationRunner struct {
 func (r *MigrationRunner) StartMigration() error {
 	r.logger.Info("Starting Migration")
 
+	// Get all the service instances in the CSB DB
 	instances, err := r.storage.GetServiceInstances()
 	if err != nil {
 		return err
 	}
+
+	// timing / logging
 	start := time.Now()
 	failedUpdates := 0
 
@@ -39,7 +42,10 @@ func (r *MigrationRunner) StartMigration() error {
 
 		r.logger.Info("Creating executor for 0.13")
 
+		// Create a Terraform executor - this is returns a TF executor with a specific Terraform version.
+		// We get the specified TF binary from the brokerpak and set it in the path of our executor.
 		jobRunner.Executor = r.ExecutorFor013()
+
 		err := jobRunner.MigrateTo013(context.TODO(), "tf:"+instance.GUID+":")
 		if err != nil {
 			failedUpdates += 1
@@ -95,6 +101,8 @@ func (r *MigrationRunner) StartMigration() error {
 		}
 
 	}
+
+	// Logging for the spike
 	r.logger.Info(fmt.Sprintf("Number of instances: %d\n", len(instances)))
 	r.logger.Info(fmt.Sprintf("Total Failures: %d\n", failedUpdates))
 	r.logger.Info(fmt.Sprintf("Total Runtime: %f\n", time.Since(start).Minutes()))

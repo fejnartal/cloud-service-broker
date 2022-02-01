@@ -525,7 +525,7 @@ func (workspace *TerraformWorkspace) MigrateTo013(ctx context.Context) error {
 		return err
 	}
 
-	// need to check if flat file system or modules
+	// need to check if flat file system or modules to perform the upgrade command in the correct dir.
 	if _, err = os.Stat(workspace.dir + "/instance.tf.json"); errors.Is(err, os.ErrNotExist) {
 		output, err := workspace.runTf(ctx, "0.13upgrade", "-yes", "-no-color")
 		if err != nil {
@@ -540,7 +540,8 @@ func (workspace *TerraformWorkspace) MigrateTo013(ctx context.Context) error {
 		logger.Info(output.StdOut)
 	}
 
-	// state provider replace
+	// state provider replace - we need to amend the auto-generated ones with the hashicorp specific ones.
+	// Won't need this workflow if we update the HCL in the brokerpak
 	//Azure
 	//providerMap := map[string]string{
 	//	"registry.terraform.io/-/azurerm":    "registry.terraform.io/hashicorp/azurerm",
