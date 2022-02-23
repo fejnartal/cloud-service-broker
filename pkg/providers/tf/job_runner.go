@@ -27,6 +27,7 @@ import (
 	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/wrapper"
 	"github.com/cloudfoundry/cloud-service-broker/utils"
 	"github.com/cloudfoundry/cloud-service-broker/utils/correlation"
+	"github.com/hashicorp/go-version"
 )
 
 const (
@@ -238,9 +239,51 @@ func (runner *TfJobRunner) Update(ctx context.Context, id string, templateVars m
 	}
 
 	go func() {
+		// TODO:
+		// Upgrade here to make goroutines easy???
+		runner.Upgrade(workspace)
 		err := workspace.Apply(ctx)
 		runner.operationFinished(err, workspace, deployment)
 	}()
+
+	return nil
+}
+
+func (runner *TfJobRunner) Upgrade(ctx context.Context, id string, templateVars map[string]interface{}, steps []*version.Version) error {
+	// TODO: steps is empty or nil
+
+	deployment, err := runner.store.GetTerraformDeployment(id)
+	if err != nil {
+		return err
+	}
+
+	workspace, err := runner.hydrateWorkspace(ctx, deployment)
+	if err != nil {
+		return err
+	}
+
+	verCurrent, err := workspace.StateVersion()
+	var upgrades []*version.Version
+	found := false
+	for i, s := range steps {
+		if s.Equal(verCurrent) {
+			upgrades = steps[i:]
+			found = true
+		}
+	}
+	if !found {
+		return fmt.Errorf("current not in steps")
+	}
+
+	for _, ver := range upgrades {
+		// TODO: re-hydrate the workspace?
+
+		// TODO errors?
+		// TODO goroutine???
+		workspace.ApplyVersion(ctx, ver)
+
+		// TODO: save state?
+	}
 
 	return nil
 }

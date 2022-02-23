@@ -341,6 +341,19 @@ func (workspace *TerraformWorkspace) Apply(ctx context.Context) error {
 	return err
 }
 
+// ApplyVersion runs `terraform apply` on this workspace with a specified version of Terraform.
+// This function blocks if another Terraform command is running on this workspace.
+func (workspace *TerraformWorkspace) ApplyVersion(ctx context.Context, ver *version.Version) error {
+	err := workspace.initializeFs(ctx)
+	defer workspace.teardownFs()
+	if err != nil {
+		return err
+	}
+
+	_, err = workspace.runTfVersion(ctx, ver, "apply", "-auto-approve", "-no-color")
+	return err
+}
+
 func (workspace *TerraformWorkspace) Plan(ctx context.Context) error {
 	logger := utils.NewLogger("terraform-plan").WithData(correlation.ID(ctx))
 
@@ -438,6 +451,22 @@ func (workspace *TerraformWorkspace) runTf(ctx context.Context, subCommand strin
 	return executor(ctx, c)
 }
 
+func (workspace *TerraformWorkspace) runTfVersion(ctx context.Context, ver *version.Version, subCommand string, args ...string) (ExecutionOutput, error) {
+	sub := []string{subCommand}
+	sub = append(sub, args...)
+
+	c := exec.Command("terraform", sub...)
+	c.Env = os.Environ()
+	c.Dir = workspace.dir
+
+	executor := DefaultExecutor
+	if workspace.Executor != nil {
+		executor = workspace.Executor
+	}
+
+	return executor(ctx, c, ver)
+}
+
 // CustomEnvironmentExecutor sets custom environment variables on the Terraform
 // execution.
 func CustomEnvironmentExecutor(environment map[string]string, wrapped TerraformExecutor) TerraformExecutor {
@@ -533,4 +562,19 @@ func DefaultExecutor(ctx context.Context, c *exec.Cmd) (ExecutionOutput, error) 
 		StdErr: string(errors),
 		StdOut: string(output),
 	}, nil
+}
+
+// TODO: test and tidy up
+type tfState struct {
+	Version string `json:"terraform_version"`
+}
+
+func (workspace *TerraformWorkspace) StateVersion() (*version.Version, error) {
+	tf := tfState{}
+	err := json.Unmarshal(workspace.State, &tf)
+	if err != nil {
+		return nil, err
+	}
+	return version.NewVersion(tf.Version)
+
 }

@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/go-version"
+
 	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/hclparser"
 
 	"code.cloudfoundry.org/lager"
@@ -117,6 +119,22 @@ func (provider *terraformProvider) Update(ctx context.Context, provisionContext 
 		OperationId:   tfId,
 		OperationType: models.UpdateOperationType,
 	}, err
+}
+
+// TODO: write tests
+func (provider *terraformProvider) Upgrade(ctx context.Context, provisionContext *varcontext.VarContext) error {
+	tfId := provisionContext.GetString("tf_id")
+	if err := provisionContext.Error(); err != nil {
+		return err
+	}
+
+	if err := UpdateWorkspaceHCL(provider.store, provider.serviceDefinition.ProvisionSettings, provisionContext, tfId); err != nil {
+		return err
+	}
+
+	steps := []*version.Version{version.Must(version.NewVersion("0.12")), version.Must(version.NewVersion("0.13")), version.Must(version.NewVersion("0.14"))}
+
+	return provider.jobRunner.Upgrade(ctx, tfId, provisionContext.ToMap(), steps)
 }
 
 // Bind creates a new backing Terraform job and executes it, waiting on the result.

@@ -90,6 +90,12 @@ func (broker *ServiceBroker) Update(ctx context.Context, instanceID string, deta
 		return response, err
 	}
 
+	// TODO:
+	// feature flag
+
+	// TODO:
+	// serviceHelper.Upgrade()
+
 	// get instance details
 	newInstanceDetails, err := serviceHelper.Update(ctx, vars)
 	if err != nil {
