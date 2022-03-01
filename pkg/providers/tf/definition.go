@@ -221,7 +221,7 @@ func (tfb *TfServiceDefinitionV1) loadTemplates() error {
 
 // ToService converts the flat TfServiceDefinitionV1 into a broker.ServiceDefinition
 // that the registry can use.
-func (tfb *TfServiceDefinitionV1) ToService(tfBinContext TfBinariesContext) (*broker.ServiceDefinition, error) {
+func (tfb *TfServiceDefinitionV1) ToService(tfBinContext TfBinariesContext, providerReplacements []wrapper.ProviderNameMapping) (*broker.ServiceDefinition, error) {
 	if err := tfb.loadTemplates(); err != nil {
 		return nil, err
 	}
@@ -288,7 +288,7 @@ func (tfb *TfServiceDefinitionV1) ToService(tfBinContext TfBinariesContext) (*br
 		PlanVariables:         append(tfb.ProvisionSettings.PlanInputs, tfb.BindSettings.PlanInputs...),
 		Examples:              tfb.Examples,
 		ProviderBuilder: func(logger lager.Logger, store broker.ServiceProviderStorage) broker.ServiceProvider {
-			return NewTerraformProvider(NewTfJobRunner(envVars, store, tfBinContext), logger, constDefn, store)
+			return NewTerraformProvider(NewTfJobRunner(envVars, store, tfBinContext, providerReplacements), logger, constDefn, store)
 		},
 	}, nil
 }

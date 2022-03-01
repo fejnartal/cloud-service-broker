@@ -22,11 +22,14 @@ type TerraformResource struct {
 
 	// URLTemplate holds a custom URL template to get the release of the given tool.
 	// Parameters available are ${name}, ${version}, ${os}, and ${arch}.
-	// If non is specified HashicorpUrlTemplate is used.
+	// If none is specified HashicorpUrlTemplate is used.
 	URLTemplate string `yaml:"url_template,omitempty"`
 
 	// Default is used to mark the default Terraform version when there is more than one
 	Default bool `yaml:"default"`
+
+	// Previously is the name that this provider has had before formatted: [<HOSTNAME>/]<NAMESPACE>/<TYPE>
+	Previously string `yaml:"previously"`
 }
 
 func (tr TerraformResource) GetProviderNamespace() string {

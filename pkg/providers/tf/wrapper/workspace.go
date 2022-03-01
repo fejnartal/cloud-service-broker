@@ -26,6 +26,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/cloudfoundry/cloud-service-broker/internal/tfprovidername"
+
 	"github.com/hashicorp/go-version"
 
 	"code.cloudfoundry.org/lager"
@@ -126,8 +128,15 @@ type TerraformWorkspace struct {
 	Executor    TerraformExecutor `json:"-"`
 	Transformer TfTransformer     `json:"transform"`
 
+	ProviderReplacements []ProviderNameMapping `json:"-"`
+
 	dirLock sync.Mutex
 	dir     string
+}
+
+type ProviderNameMapping struct {
+	Original tfprovidername.TfProviderName
+	Target   tfprovidername.TfProviderName
 }
 
 // String returns a human-friendly representation of the workspace suitable for
@@ -271,6 +280,10 @@ func (workspace *TerraformWorkspace) initializeFs(ctx context.Context) error {
 		if err := os.WriteFile(workspace.tfStatePath(), workspace.State, 0755); err != nil {
 			return err
 		}
+	}
+
+	if err := workspace.replaceProviders(ctx); err != nil {
+
 	}
 
 	// run "terraform init"
@@ -436,6 +449,22 @@ func (workspace *TerraformWorkspace) runTf(ctx context.Context, subCommand strin
 	}
 
 	return executor(ctx, c)
+}
+
+func (workspace *TerraformWorkspace) replaceProviders(ctx context.Context) error {
+	for _, r := range workspace.ProviderReplacements {
+		args := []string{
+			"replace-provider",
+			"-auto-approve",
+			r.Original.String(),
+			r.Target.String(),
+		}
+		if _, err := workspace.runTf(ctx, "state", args...); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // CustomEnvironmentExecutor sets custom environment variables on the Terraform

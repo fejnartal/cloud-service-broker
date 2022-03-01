@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/wrapper"
+
 	"code.cloudfoundry.org/lager"
 	"github.com/cloudfoundry/cloud-service-broker/internal/brokerpak/manifest"
 	"github.com/cloudfoundry/cloud-service-broker/internal/brokerpak/reader"
@@ -69,7 +71,17 @@ func (r *Registrar) Register(registry broker.BrokerRegistry) error {
 			return err
 		}
 
-		defns, err := r.toDefinitions(services, pak, tfBinariesContext)
+		mf, err := brokerPak.Manifest()
+		if err != nil {
+			return fmt.Errorf("error reading brokerpak manifest: %w", err)
+		}
+
+		providerReplacements, err := mf.ProviderReplacements()
+		if err != nil {
+			return err
+		}
+
+		defns, err := r.toDefinitions(services, pak, tfBinariesContext, providerReplacements)
 		if err != nil {
 			return err
 		}
@@ -86,11 +98,6 @@ func (r *Registrar) Register(registry broker.BrokerRegistry) error {
 			return errs
 		}
 
-		mf, err := brokerPak.Manifest()
-		if err != nil {
-			return fmt.Errorf("error reading brokerpak manifest: %w", err)
-		}
-
 		for env, config := range mf.EnvConfigMapping {
 			viper.BindEnv(config, env)
 		}
@@ -100,7 +107,7 @@ func (r *Registrar) Register(registry broker.BrokerRegistry) error {
 	})
 }
 
-func (Registrar) toDefinitions(services []tf.TfServiceDefinitionV1, config BrokerpakSourceConfig, tfBinariesContext tf.TfBinariesContext) ([]*broker.ServiceDefinition, error) {
+func (Registrar) toDefinitions(services []tf.TfServiceDefinitionV1, config BrokerpakSourceConfig, tfBinariesContext tf.TfBinariesContext, providerReplacements []wrapper.ProviderNameMapping) ([]*broker.ServiceDefinition, error) {
 	var out []*broker.ServiceDefinition
 
 	toIgnore := utils.NewStringSet(config.ExcludedServicesSlice()...)
@@ -111,7 +118,7 @@ func (Registrar) toDefinitions(services []tf.TfServiceDefinitionV1, config Broke
 
 		svc.Name = config.ServicePrefix + svc.Name
 
-		bs, err := svc.ToService(tfBinariesContext)
+		bs, err := svc.ToService(tfBinariesContext, providerReplacements)
 		if err != nil {
 			return nil, err
 		}

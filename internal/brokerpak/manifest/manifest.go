@@ -3,6 +3,10 @@ package manifest
 
 import (
 	"fmt"
+	"strings"
+
+	"github.com/cloudfoundry/cloud-service-broker/internal/tfprovidername"
+	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/wrapper"
 
 	"github.com/cloudfoundry/cloud-service-broker/internal/brokerpak/platform"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/validation"
@@ -184,4 +188,25 @@ func (m *Manifest) validateParameters() (errs *validation.FieldError) {
 	}
 
 	return errs
+}
+
+func (m *Manifest) ProviderReplacements() (result []wrapper.ProviderNameMapping, err error) {
+	for _, r := range m.TerraformResources {
+		if strings.HasPrefix(r.Name, "terraform-provider-") && r.Previously != "" {
+			t, err := tfprovidername.NewFromProvider(fmt.Sprintf("%s/%s", r.GetProviderNamespace(), r.GetProviderType()))
+			if err != nil {
+				return nil, err
+			}
+			o, err := tfprovidername.NewFromProvider(r.Previously)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, wrapper.ProviderNameMapping{
+				Original: o,
+				Target:   t,
+			})
+		}
+	}
+
+	return result, nil
 }

@@ -37,11 +37,12 @@ const (
 )
 
 // NewTfJobRunner constructs a new JobRunner for the given project.
-func NewTfJobRunner(envVars map[string]string, store broker.ServiceProviderStorage, tfBinContext TfBinariesContext) *TfJobRunner {
+func NewTfJobRunner(envVars map[string]string, store broker.ServiceProviderStorage, tfBinContext TfBinariesContext, providerReplacements []wrapper.ProviderNameMapping) *TfJobRunner {
 	return &TfJobRunner{
-		envVars:      envVars,
-		store:        store,
-		tfBinContext: tfBinContext,
+		envVars:              envVars,
+		store:                store,
+		tfBinContext:         tfBinContext,
+		providerReplacements: providerReplacements,
 	}
 }
 
@@ -60,8 +61,9 @@ type TfJobRunner struct {
 	// env (usually Terraform provider credentials)
 	envVars map[string]string
 	// executor holds a custom executor that will be called when commands are run.
-	store        broker.ServiceProviderStorage
-	tfBinContext TfBinariesContext
+	store                broker.ServiceProviderStorage
+	tfBinContext         TfBinariesContext
+	providerReplacements []wrapper.ProviderNameMapping
 }
 
 func (runner *TfJobRunner) executor() wrapper.TerraformExecutor {
@@ -74,7 +76,6 @@ func (runner *TfJobRunner) executor() wrapper.TerraformExecutor {
 			wrapper.DefaultExecutor,
 		),
 	)
-
 }
 
 // StageJob stages a job to be executed. Before the workspace is saved to the
@@ -123,6 +124,7 @@ func (runner *TfJobRunner) hydrateWorkspace(ctx context.Context, deployment stor
 	if err != nil {
 		return nil, err
 	}
+	ws.ProviderReplacements = runner.providerReplacements
 
 	ws.Executor = wrapper.CustomEnvironmentExecutor(runner.envVars, runner.executor())
 
