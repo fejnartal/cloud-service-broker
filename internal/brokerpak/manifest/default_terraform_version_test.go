@@ -29,7 +29,7 @@ var _ = Describe("DefaultTerraformVersion", func() {
 		}
 
 		_, err := exampleManifest.DefaultTerraformVersion()
-		Expect(err).To(MatchError("Malformed version: non-semver"))
+		Expect(err).To(MatchError("failed to parse terraform version: Malformed version: non-semver"))
 	})
 
 	It("it returns error when it can't find terraform version", func() {

@@ -7,13 +7,14 @@ import (
 )
 
 func (m *Manifest) DefaultTerraformVersion() (*version.Version, error) {
-	var versions []string
-	for _, r := range m.TerraformResources {
-		if r.Name == "terraform" {
-			if r.Default {
-				return version.NewVersion(r.Version)
-			}
-			versions = append(versions, r.Version)
+	versions, err := m.TerraformVersions()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, r := range versions {
+		if r.Default {
+			return r.Version, nil
 		}
 	}
 
@@ -21,7 +22,7 @@ func (m *Manifest) DefaultTerraformVersion() (*version.Version, error) {
 	case 0:
 		return &version.Version{}, fmt.Errorf("terraform not found")
 	case 1:
-		return version.NewVersion(versions[0])
+		return versions[0].Version, nil
 	default:
 		return &version.Version{}, fmt.Errorf("no default terraform found")
 	}
