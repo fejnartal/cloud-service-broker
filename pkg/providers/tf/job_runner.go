@@ -211,7 +211,7 @@ func (runner *TfJobRunner) Create(ctx context.Context, id string) error {
 		return fmt.Errorf("error getting TF deployment: %w", err)
 	}
 
-	workspace, err := workspace.DeserializeWorkspace(deployment.Workspace)
+	workspace, err := runner.CreateWorkspace(deployment)
 	if err != nil {
 		return fmt.Errorf("error hydrating workspace: %w", err)
 	}
@@ -298,12 +298,12 @@ func (runner *TfJobRunner) Destroy(ctx context.Context, id string, templateVars 
 		return err
 	}
 
-	workspace, err := workspace.DeserializeWorkspace(deployment.Workspace)
+	workspace, err := runner.CreateWorkspace(deployment)
 	if err != nil {
 		return err
 	}
 
-	inputList, err := workspace.Modules[0].Inputs()
+	inputList, err := workspace.ModuleDefinitions()[0].Inputs()
 	if err != nil {
 		return err
 	}
@@ -313,7 +313,7 @@ func (runner *TfJobRunner) Destroy(ctx context.Context, id string, templateVars 
 		limitedConfig[name] = templateVars[name]
 	}
 
-	workspace.Instances[0].Configuration = limitedConfig
+	workspace.ModuleInstances()[0].Configuration = limitedConfig
 
 	if err := runner.markJobStarted(deployment, models.DeprovisionOperationType); err != nil {
 		return err
@@ -391,7 +391,7 @@ func (runner *TfJobRunner) Outputs(ctx context.Context, id, instanceName string)
 		return nil, fmt.Errorf("error getting TF deployment: %w", err)
 	}
 
-	ws, err := workspace.DeserializeWorkspace(deployment.Workspace)
+	ws, err := runner.CreateWorkspace(deployment)
 	if err != nil {
 		return nil, fmt.Errorf("error deserializing workspace: %w", err)
 	}
@@ -422,7 +422,7 @@ func (runner *TfJobRunner) Show(ctx context.Context, id string) (string, error) 
 		return "", err
 	}
 
-	workspace, err := workspace.DeserializeWorkspace(deployment.Workspace)
+	workspace, err := runner.CreateWorkspace(deployment)
 	if err != nil {
 		return "", err
 	}

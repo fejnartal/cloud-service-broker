@@ -21,6 +21,8 @@ import (
 )
 
 var _ = Describe("TfJobRunner", func() {
+	const exampleWorkspace = `{"modules":[{"Name":"brokertemplate","Definition":"","Definitions":{"main":"resource \"google_storage_bucket\" \"bucket\"{name = var.name}","outputs":"output \"id\" { value = google_storage_bucket.bucket.id }","provider":"provider \"google\" {credentials = var.credentials}","variables":"variable \"name\" { type = string }","versions":"terraform {\n  required_providers {\n    google = {\n      source  = \"hashicorp/google\"\n      version = \"\u003e=4.8.0\"\n    }\n  }\n}\n"}}], "instances":[{"module_name":"brokertemplate","instance_name":"instance","configuration":{"foo":"bar"}}]}`
+
 	var (
 		fakeStore          *brokerfakes.FakeStorage
 		workspaceFactory   *tffakes.FakeWorkspaceBuilder
@@ -36,11 +38,18 @@ var _ = Describe("TfJobRunner", func() {
 		workspaceFactory = &tffakes.FakeWorkspaceBuilder{}
 		fakeWorkspace = &tffakes.FakeWorkspace{}
 		fakeWorkspace.ModuleInstancesReturns([]workspace.ModuleInstance{{ModuleName: "moduleName"}})
+		fakeWorkspace.ModuleDefinitionsReturns([]workspace.ModuleDefinition{{
+			Name:        "foo",
+			Definition:  "",
+			Definitions: map[string]string{"baz": "bar"},
+		}})
+
 		fakeInvokerBuilder = &tffakes.FakeTerraformInvokerBuilder{}
 		fakeDefaultInvoker = &tffakes.FakeTerraformInvoker{}
 		deploymentId = "deploymentID"
 		deployment = storage.TerraformDeployment{
-			ID: deploymentId,
+			ID:        deploymentId,
+			Workspace: []byte("{}"),
 		}
 		viper.Reset()
 	})
@@ -131,6 +140,187 @@ var _ = Describe("TfJobRunner", func() {
 		})
 
 		It("return the error in last operation, if terraform apply fails", func() {
+			fakeStore.GetTerraformDeploymentReturns(deployment, nil)
+			workspaceFactory.CreateWorkspaceReturns(fakeWorkspace, nil)
+			tfVersion := "1.1"
+			fakeInvokerBuilder.VersionedTerraformInvokerReturns(fakeDefaultInvoker)
+			fakeWorkspace.StateVersionReturns(newVersion(tfVersion), nil)
+			fakeDefaultInvoker.ApplyReturns(genericError)
+
+			runner := tf.NewTfJobRunner(fakeStore, executor.TFBinariesContext{DefaultTfVersion: newVersion(tfVersion)}, workspaceFactory, fakeInvokerBuilder)
+
+			Expect(runner.Update(context.TODO(), deploymentId, nil)).To(Succeed())
+			Eventually(lastStoredLastOperation(fakeStore)).Should(Or(Equal(tf.Succeeded), Equal(tf.Failed)))
+			Expect(lastStoredLastOperation(fakeStore)()).To(Equal(tf.Failed))
+			Expect(lastStoredDeployment(fakeStore)().LastOperationMessage).To(ContainSubstring(genericError.Error()))
+		})
+
+		Context("when tfUpgrades are enabled", func() {
+			BeforeEach(func() {
+				viper.Set(tf.TfUpgradeEnabled, true)
+			})
+			It("runs apply with all tf versions in the upgrade path", func() {
+				tfBinContext := executor.TFBinariesContext{
+					DefaultTfVersion: newVersion("0.1.0"),
+					TfUpgradePath: []*version.Version{
+						newVersion("0.0.1"),
+						newVersion("0.0.2"),
+						newVersion("0.1.0"),
+					},
+				}
+				fakeInvoker1 := &tffakes.FakeTerraformInvoker{}
+				fakeInvoker2 := &tffakes.FakeTerraformInvoker{}
+
+				fakeStore.GetTerraformDeploymentReturns(deployment, nil)
+				workspaceFactory.CreateWorkspaceReturns(fakeWorkspace, nil)
+				fakeInvokerBuilder.VersionedTerraformInvokerReturnsOnCall(0, fakeInvoker1)
+				fakeInvokerBuilder.VersionedTerraformInvokerReturnsOnCall(1, fakeInvoker2)
+				fakeInvokerBuilder.VersionedTerraformInvokerReturnsOnCall(2, fakeDefaultInvoker)
+
+				fakeWorkspace.StateVersionReturns(newVersion("0.0.1"), nil)
+				fakeWorkspace.ModuleInstancesReturns([]workspace.ModuleInstance{{ModuleName: "moduleName"}})
+
+				runner := tf.NewTfJobRunner(fakeStore, tfBinContext, workspaceFactory, fakeInvokerBuilder)
+				runner.Update(context.TODO(), deploymentId, nil)
+
+				Eventually(lastStoredLastOperation(fakeStore)).Should(Or(Equal(tf.Succeeded), Equal(tf.Failed)))
+				Expect(lastStoredLastOperation(fakeStore)()).To(Equal(tf.Succeeded))
+
+				Expect(fakeInvoker1.ApplyCallCount()).To(Equal(1))
+				Expect(getWorkspace(fakeInvoker1, 0)).To(Equal(fakeWorkspace))
+
+				Expect(fakeInvoker2.ApplyCallCount()).To(Equal(1))
+				Expect(getWorkspace(fakeInvoker2, 0)).To(Equal(fakeWorkspace))
+
+				Expect(fakeDefaultInvoker.ApplyCallCount()).To(Equal(1))
+				Expect(getWorkspace(fakeDefaultInvoker, 0)).To(Equal(fakeWorkspace))
+
+				Expect(fakeInvokerBuilder.VersionedTerraformInvokerCallCount()).To(Equal(3))
+				Expect(fakeInvokerBuilder.VersionedTerraformInvokerArgsForCall(0)).To(Equal(newVersion("0.0.2")))
+				Expect(fakeInvokerBuilder.VersionedTerraformInvokerArgsForCall(1)).To(Equal(newVersion("0.1.0")))
+				Expect(fakeInvokerBuilder.VersionedTerraformInvokerArgsForCall(2)).To(Equal(newVersion("0.1.0")))
+			})
+
+			It("fails the update, if the version of version of statefile does not match the default tf version, and no upgrade path is specified", func() {
+				tfBinContext := executor.TFBinariesContext{
+					DefaultTfVersion: newVersion("0.1.0"),
+				}
+
+				fakeStore.GetTerraformDeploymentReturns(deployment, nil)
+				workspaceFactory.CreateWorkspaceReturns(fakeWorkspace, nil)
+				fakeWorkspace.StateVersionReturns(newVersion("0.0.1"), nil)
+
+				runner := tf.NewTfJobRunner(fakeStore, tfBinContext, workspaceFactory, fakeInvokerBuilder)
+				runner.Update(context.TODO(), deploymentId, nil)
+
+				Eventually(lastStoredLastOperation(fakeStore)).Should(Or(Equal(tf.Succeeded), Equal(tf.Failed)))
+				Expect(lastStoredLastOperation(fakeStore)()).To(Equal(tf.Failed))
+				Expect(fakeInvokerBuilder.VersionedTerraformInvokerCallCount()).To(Equal(0))
+			})
+		})
+
+		Context("when tfUpgrades are disabled", func() {
+			BeforeEach(func() {
+				viper.Set(tf.TfUpgradeEnabled, false)
+			})
+
+			It("fails the update, if the version of version of statefile does not match the default tf version", func() {
+				tfBinContext := executor.TFBinariesContext{
+					DefaultTfVersion: newVersion("0.1.0"),
+				}
+
+				fakeStore.GetTerraformDeploymentReturns(deployment, nil)
+				workspaceFactory.CreateWorkspaceReturns(fakeWorkspace, nil)
+				fakeWorkspace.StateVersionReturns(newVersion("0.0.1"), nil)
+
+				runner := tf.NewTfJobRunner(fakeStore, tfBinContext, workspaceFactory, fakeInvokerBuilder)
+				runner.Update(context.TODO(), deploymentId, nil)
+
+				Eventually(lastStoredLastOperation(fakeStore)).Should(Or(Equal(tf.Succeeded), Equal(tf.Failed)))
+				Expect(lastStoredLastOperation(fakeStore)()).To(Equal(tf.Failed))
+				Expect(fakeInvokerBuilder.VersionedTerraformInvokerCallCount()).To(Equal(0))
+			})
+
+			It("performs the update, default tf version matches instance", func() {
+				tfBinContext := executor.TFBinariesContext{
+					DefaultTfVersion: newVersion("0.1.0"),
+				}
+
+				fakeStore.GetTerraformDeploymentReturns(deployment, nil)
+				workspaceFactory.CreateWorkspaceReturns(fakeWorkspace, nil)
+				fakeInvokerBuilder.VersionedTerraformInvokerReturnsOnCall(0, fakeDefaultInvoker)
+				fakeWorkspace.StateVersionReturns(newVersion("0.1.0"), nil)
+
+				var templateVars map[string]interface{}
+
+				runner := tf.NewTfJobRunner(fakeStore, tfBinContext, workspaceFactory, fakeInvokerBuilder)
+				runner.Update(context.TODO(), deploymentId, templateVars)
+
+				Eventually(lastStoredLastOperation(fakeStore)).Should(Or(Equal(tf.Succeeded), Equal(tf.Failed)))
+
+				Expect(lastStoredLastOperation(fakeStore)()).To(Equal(tf.Succeeded))
+
+				Expect(fakeDefaultInvoker.ApplyCallCount()).To(Equal(1))
+				_, workspace := fakeDefaultInvoker.ApplyArgsForCall(0)
+				Expect(workspace).To(Equal(fakeWorkspace))
+			})
+		})
+
+	})
+
+	FDescribe("Destroy", func() {
+		It("fails, when deployment can't be found", func() {
+			fakeStore.GetTerraformDeploymentReturns(storage.TerraformDeployment{}, genericError)
+			runner := tf.NewTfJobRunner(fakeStore, executor.TFBinariesContext{}, workspaceFactory, fakeInvokerBuilder)
+
+			Expect(runner.Destroy(context.TODO(), deploymentId, nil)).To(MatchError(genericError))
+		})
+
+		It("fails, when workspace can't be deserialized", func() {
+			workspaceFactory.CreateWorkspaceReturns(fakeWorkspace, nil)
+			fakeStore.GetTerraformDeploymentReturns(deployment, nil)
+			runner := tf.NewTfJobRunner(fakeStore, executor.TFBinariesContext{}, workspaceFactory, fakeInvokerBuilder)
+
+			Expect(runner.Destroy(context.TODO(), deploymentId, nil)).To(MatchError("unexpected end of JSON input"))
+
+		})
+
+		It("fails, when no modules are in workspace", func() {
+			workspaceFactory.CreateWorkspaceReturns(fakeWorkspace, nil)
+			fakeStore.GetTerraformDeploymentReturns(deployment, nil)
+			runner := tf.NewTfJobRunner(fakeStore, executor.TFBinariesContext{}, workspaceFactory, fakeInvokerBuilder)
+
+			Expect(runner.Destroy(context.TODO(), deploymentId, nil)).To(MatchError("index out of range"))
+
+		})
+
+		It("fails, when unable to mark job as started ", func() {
+			workspaceFactory.CreateWorkspaceReturns(fakeWorkspace, nil)
+			fakeStore.GetTerraformDeploymentReturns(deployment, nil)
+			fakeStore.StoreTerraformDeploymentReturns(fmt.Errorf("error saving terraform deployment"))
+
+			runner := tf.NewTfJobRunner(fakeStore, executor.TFBinariesContext{}, workspaceFactory, fakeInvokerBuilder)
+			Expect(runner.Destroy(context.TODO(), deploymentId, nil)).To(MatchError("error saving terraform deployment"))
+		})
+
+		It("updates the last operation on success, with the status from terraform", func() {
+			deployment.Workspace = []byte(exampleWorkspace)
+			fakeStore.GetTerraformDeploymentReturns(deployment, nil)
+
+			tfVersion := "1.1"
+			fakeInvokerBuilder.VersionedTerraformInvokerReturns(fakeDefaultInvoker)
+			fakeWorkspace.OutputsReturns(map[string]interface{}{"status": "status from terraform"}, nil)
+
+			runner := tf.NewTfJobRunner(fakeStore, executor.TFBinariesContext{DefaultTfVersion: newVersion(tfVersion)}, workspaceFactory, fakeInvokerBuilder)
+
+			Expect(runner.Destroy(context.TODO(), deploymentId, nil)).To(Succeed())
+			Eventually(lastStoredLastOperation(fakeStore)).Should(Or(Equal(tf.Succeeded), Equal(tf.Failed)))
+			Expect(lastStoredLastOperation(fakeStore)()).To(Equal(tf.Succeeded))
+
+			Expect(lastStoredDeployment(fakeStore)().LastOperationMessage).To(Equal("status from terraform"))
+		})
+
+		It("return the error in last operation, if terraform destroy fails", func() {
 			fakeStore.GetTerraformDeploymentReturns(deployment, nil)
 			workspaceFactory.CreateWorkspaceReturns(fakeWorkspace, nil)
 			tfVersion := "1.1"
