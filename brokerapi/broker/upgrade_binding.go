@@ -28,6 +28,9 @@ func (broker *ServiceBroker) upgradeBindingTF(ctx context.Context, instanceID st
 	}
 
 	bindingTFIDs, err := broker.store.GetServiceBindingIDs(instanceID)
+	if err != nil {
+		return err
+	}
 
 	for _, binding := range bindingTFIDs {
 		// get existing service instance details
