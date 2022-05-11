@@ -67,30 +67,22 @@ type terraformProvider struct {
 
 // Provision creates the necessary resources that an instance of this service
 // needs to operate.
-func (provider *terraformProvider) Provision(ctx context.Context, provisionContext *varcontext.VarContext) (storage.ServiceInstanceDetails, error) {
+func (provider *terraformProvider) Provision(ctx context.Context, provisionContext *varcontext.VarContext) error {
 	provider.logger.Debug("terraform-provision", correlation.ID(ctx), lager.Data{
 		"context": provisionContext.ToMap(),
 	})
-
-	var (
-		tfID string
-		err  error
-	)
-
+	var err error
 	switch provider.serviceDefinition.ProvisionSettings.IsTfImport(provisionContext) {
 	case true:
-		tfID, err = provider.importCreate(ctx, provisionContext, provider.serviceDefinition.ProvisionSettings)
+		_, err = provider.importCreate(ctx, provisionContext, provider.serviceDefinition.ProvisionSettings)
 	default:
-		tfID, err = provider.create(ctx, provisionContext, provider.serviceDefinition.ProvisionSettings)
+		_, err = provider.create(ctx, provisionContext, provider.serviceDefinition.ProvisionSettings)
 	}
 	if err != nil {
-		return storage.ServiceInstanceDetails{}, err
+		return err
 	}
 
-	return storage.ServiceInstanceDetails{
-		OperationGUID: tfID,
-		OperationType: models.ProvisionOperationType,
-	}, nil
+	return nil
 }
 
 // Update makes necessary updates to resources so they match new desired configuration

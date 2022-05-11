@@ -33,7 +33,7 @@ import (
 type ServiceProvider interface {
 	// Provision creates the necessary resources that an instance of this service
 	// needs to operate.
-	Provision(ctx context.Context, provisionContext *varcontext.VarContext) (storage.ServiceInstanceDetails, error)
+	Provision(ctx context.Context, provisionContext *varcontext.VarContext) error
 
 	// Update makes necessary updates to resources so they match new desired configuration
 	Update(ctx context.Context, provisionContext *varcontext.VarContext) (models.ServiceInstanceDetails, error)

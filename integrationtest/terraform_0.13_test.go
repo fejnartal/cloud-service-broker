@@ -30,7 +30,7 @@ var _ = Describe("Terraform 0.13", func() {
 		testHelper.Restore()
 	})
 
-	It("can provision using this Terraform version", func() {
+	FIt("can provision using this Terraform version", func() {
 		const serviceOfferingGUID = "df2c1512-3013-11ec-8704-2fbfa9c8a802"
 		const servicePlanGUID = "e59773ce-3013-11ec-9bbb-9376b4f72d14"
 		serviceInstanceGUID := uuid.New()

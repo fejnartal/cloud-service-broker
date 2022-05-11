@@ -18,6 +18,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/workspace"
+
+	"github.com/cloudfoundry/cloud-service-broker/db_service/models"
+	"github.com/cloudfoundry/cloud-service-broker/internal/storage"
+
 	"code.cloudfoundry.org/lager"
 	"github.com/cloudfoundry/cloud-service-broker/internal/paramparser"
 	"github.com/cloudfoundry/cloud-service-broker/utils/correlation"
@@ -83,9 +88,9 @@ func (broker *ServiceBroker) Provision(ctx context.Context, instanceID string, d
 	}
 
 	// get instance details
-	instanceDetails, err := serviceHelper.Provision(ctx, vars)
-	if err != nil {
-		return domain.ProvisionedServiceSpec{}, err
+	instanceDetails := storage.ServiceInstanceDetails{
+		OperationGUID: vars.GetString("tf_id"),
+		OperationType: models.ProvisionOperationType,
 	}
 
 	// save instance details
@@ -104,5 +109,67 @@ func (broker *ServiceBroker) Provision(ctx context.Context, instanceID string, d
 		return domain.ProvisionedServiceSpec{}, fmt.Errorf("error saving provision request details to database: %s. Services relying on async provisioning will not be able to complete provisioning", err)
 	}
 
+	deployment, err := broker.store.GetTerraformDeployment(instanceDetails.OperationGUID)
+	if err != nil {
+		return domain.ProvisionedServiceSpec{}, err
+	}
+	if err := broker.markJobStarted(deployment, models.ProvisionOperationType); err != nil {
+		return domain.ProvisionedServiceSpec{}, fmt.Errorf("error marking job started: %w", err)
+	}
+
+	// Do things
+	go func() {
+
+		serviceHelper.Provision(ctx, vars)
+		broker.operationFinished(err, workspace, deployment)
+
+	}()
+
 	return domain.ProvisionedServiceSpec{IsAsync: shouldProvisionAsync, DashboardURL: "", OperationData: instanceDetails.OperationGUID}, nil
 }
+
+func (broker *ServiceBroker) markJobStarted(deployment storage.TerraformDeployment, operationType string) error {
+	// update the deployment info
+	deployment.LastOperationType = operationType
+	deployment.LastOperationState = InProgress
+	deployment.LastOperationMessage = ""
+
+	if err := broker.store.StoreTerraformDeployment(deployment); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (runner *ServiceBroker) operationFinished(err error, workspace workspace.Workspace, deployment storage.TerraformDeployment) error {
+	// we shouldn't update the status on update when updating the HCL, as the status comes either from the provision call or a previous update
+	if err == nil {
+		lastOperationMessage := ""
+		// maybe do if deployment.LastOperationType != "validation" so we don't do the status update on staging a job.
+		// previously we would only stage a job on provision so state would be empty and the outputs would be null.
+		outputs, err := workspace.Outputs(workspace.ModuleInstances()[0].InstanceName)
+		if err == nil {
+			if status, ok := outputs["status"]; ok {
+				lastOperationMessage = fmt.Sprintf("%v", status)
+			}
+		}
+		deployment.LastOperationState = Succeeded
+		deployment.LastOperationMessage = deployment.GetStatusFromWorkspace()
+	} else {
+		deployment.LastOperationState = Failed
+		deployment.LastOperationMessage = err.Error()
+	}
+
+	if err != nil {
+		deployment.LastOperationState = Failed
+		deployment.LastOperationMessage = fmt.Sprintf("couldn't serialize workspace, contact your operator for cleanup: %s", err.Error())
+	}
+
+	return runner.store.StoreTerraformDeployment(deployment)
+}
+
+const (
+	InProgress = "in progress"
+	Succeeded  = "succeeded"
+	Failed     = "failed"
+)

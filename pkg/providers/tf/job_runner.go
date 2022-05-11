@@ -84,16 +84,18 @@ type TfJobRunner struct {
 // StageJob stages a job to be executed. Before the workspace is saved to the
 // database, the modules and inputs are validated by Terraform.
 func (runner *TfJobRunner) StageJob(jobID string, workspace *workspace.TerraformWorkspace) error {
-	deployment := storage.TerraformDeployment{ID: jobID}
+	var deployment storage.TerraformDeployment
 	exists, err := runner.store.ExistsTerraformDeployment(jobID)
-	switch {
-	case err != nil:
+	if err != nil {
 		return err
-	case exists:
+	}
+	if exists {
 		deployment, err = runner.store.GetTerraformDeployment(jobID)
 		if err != nil {
 			return err
 		}
+	} else {
+		deployment = storage.TerraformDeployment{ID: jobID}
 	}
 
 	workspaceString, err := workspace.Serialize()
@@ -220,12 +222,33 @@ func (runner *TfJobRunner) Create(ctx context.Context, id string) error {
 		return fmt.Errorf("error marking job started: %w", err)
 	}
 
-	go func() {
-		err := runner.DefaultInvoker().Apply(ctx, workspace)
-		runner.operationFinished(err, workspace, deployment)
-	}()
+	err = runner.DefaultInvoker().Apply(ctx, workspace)
+	runner.operationFinished(err, workspace, deployment)
 
-	return nil
+	return err
+}
+func (runner *TfJobRunner) Create2(ctx context.Context, deployment storage.TerraformDeployment) error {
+	workspace, err := workspace.DeserializeWorkspace(deployment.Workspace)
+	if err != nil {
+		return fmt.Errorf("error hydrating workspace: %w", err)
+	}
+
+	//Move this up
+	//if err := runner.markJobStarted(deployment, models.ProvisionOperationType); err != nil {
+	//	return fmt.Errorf("error marking job started: %w", err)
+	//}
+
+	err = runner.DefaultInvoker().Apply(ctx, workspace)
+	if err != nil {
+		return err
+	}
+	statusFromWorkspace := "...."
+	deployment.LastOperationState = statusFromWorkspace
+
+	return overrideWorkspace(deployment, workspace)
+
+	// Move this up
+	//runner.operationFinished(err, workspace, deployment)
 }
 
 func (runner *TfJobRunner) Update(ctx context.Context, id string, templateVars map[string]interface{}) error {
@@ -354,15 +377,23 @@ func (runner *TfJobRunner) operationFinished(err error, workspace workspace.Work
 		deployment.LastOperationMessage = err.Error()
 	}
 
-	workspaceString, err := workspace.Serialize()
+	err = overrideWorkspace(deployment, workspace)
 	if err != nil {
 		deployment.LastOperationState = Failed
 		deployment.LastOperationMessage = fmt.Sprintf("couldn't serialize workspace, contact your operator for cleanup: %s", err.Error())
 	}
 
-	deployment.Workspace = []byte(workspaceString)
-
 	return runner.store.StoreTerraformDeployment(deployment)
+}
+
+func overrideWorkspace(deployment storage.TerraformDeployment, workspace workspace.Workspace) error {
+	workspaceString, err := workspace.Serialize()
+	if err != nil {
+		return err
+	}
+
+	deployment.Workspace = []byte(workspaceString)
+	return nil
 }
 
 // Status gets the status of the most recent job on the workspace.

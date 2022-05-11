@@ -626,7 +626,7 @@ func (fake *FakeServiceProvider) PollInstanceReturnsOnCall(i int, result1 bool, 
 	}{result1, result2, result3}
 }
 
-func (fake *FakeServiceProvider) Provision(arg1 context.Context, arg2 *varcontext.VarContext) (storage.ServiceInstanceDetails, error) {
+func (fake *FakeServiceProvider) Provision(ctx context.Context, provisionContext *varcontext.VarContext) error {
 	fake.provisionMutex.Lock()
 	ret, specificReturn := fake.provisionReturnsOnCall[len(fake.provisionArgsForCall)]
 	fake.provisionArgsForCall = append(fake.provisionArgsForCall, struct {
@@ -641,9 +641,9 @@ func (fake *FakeServiceProvider) Provision(arg1 context.Context, arg2 *varcontex
 		return stub(arg1, arg2)
 	}
 	if specificReturn {
-		return ret.result1, ret.result2
+		return ret.result2
 	}
-	return fakeReturns.result1, fakeReturns.result2
+	return fakeReturns.result2
 }
 
 func (fake *FakeServiceProvider) ProvisionCallCount() int {
