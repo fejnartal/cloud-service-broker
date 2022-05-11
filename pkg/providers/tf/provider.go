@@ -39,6 +39,7 @@ type JobRunner interface {
 	Import(ctx context.Context, id string, importResources []ImportResource) error
 	Create(ctx context.Context, id string) error
 	Update(ctx context.Context, id string, templateVars map[string]interface{}) error
+	Upgrade(ctx context.Context, id string) error
 	Destroy(ctx context.Context, id string, templateVars map[string]interface{}) error
 	Status(ctx context.Context, id string) (bool, string, error)
 	Outputs(ctx context.Context, id, instanceName string) (map[string]interface{}, error)
@@ -229,6 +230,27 @@ func (provider *terraformProvider) Unbind(ctx context.Context, instanceGUID, bin
 	}
 
 	if err := provider.jobRunner.Destroy(ctx, tfID, vc.ToMap()); err != nil {
+		return err
+	}
+
+	return provider.jobRunner.Wait(ctx, tfID)
+}
+
+// Unbind performs a terraform destroy on the binding.
+func (provider *terraformProvider) UpgradeBinding(ctx context.Context, instanceGUID, bindingID string, vc *varcontext.VarContext) error {
+	tfID := generateTfID(instanceGUID, bindingID)
+
+	provider.logger.Debug("terraform-upgrade-binding", correlation.ID(ctx), lager.Data{
+		"instance": instanceGUID,
+		"binding":  bindingID,
+		"tfId":     tfID,
+	})
+
+	if err := UpdateWorkspaceHCL(provider.store, provider.serviceDefinition.BindSettings, vc, tfID); err != nil {
+		return err
+	}
+
+	if err := provider.jobRunner.Upgrade(ctx, tfID); err != nil {
 		return err
 	}
 

@@ -50,6 +50,8 @@ type ServiceProvider interface {
 	BuildInstanceCredentials(ctx context.Context, credentials map[string]interface{}, outputs storage.JSONObject) (*domain.Binding, error)
 	// Unbind deprovisions the resources created with Bind.
 	Unbind(ctx context.Context, instanceGUID, bindingID string, vc *varcontext.VarContext) error
+
+	UpgradeBinding(ctx context.Context, instanceGUID, bindingID string, vc *varcontext.VarContext) error
 	// Deprovision deprovisions the service.
 	// If the deprovision is asynchronous (results in a long-running job), then operationId is returned.
 	// If no error and no operationId are returned, then the deprovision is expected to have been completed successfully.

@@ -263,6 +263,33 @@ func (runner *TfJobRunner) Update(ctx context.Context, id string, templateVars m
 	return nil
 }
 
+func (runner *TfJobRunner) Upgrade(ctx context.Context, id string) error {
+	deployment, err := runner.store.GetTerraformDeployment(id)
+	if err != nil {
+		return err
+	}
+
+	workspace, err := runner.CreateWorkspace(deployment)
+	if err != nil {
+		return err
+	}
+
+	if err := runner.markJobStarted(deployment, models.UpdateOperationType); err != nil {
+		return err
+	}
+
+	go func() {
+		err = runner.performTerraformUpgrade(ctx, workspace)
+		if err != nil {
+			runner.operationFinished(err, workspace, deployment)
+			return
+		}
+		runner.operationFinished(err, workspace, deployment)
+	}()
+
+	return nil
+}
+
 func (runner *TfJobRunner) performTerraformUpgrade(ctx context.Context, workspace workspace.Workspace) error {
 	currentTfVersion, err := workspace.StateVersion()
 	if err != nil {
