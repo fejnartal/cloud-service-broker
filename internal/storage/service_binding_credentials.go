@@ -82,7 +82,7 @@ func (s *Storage) GetServiceBindingIDs(serviceInstanceID string) ([]models.Servi
 
 	rows, err := s.db.Model(&receiver).Where("service_instance_id = ?", serviceInstanceID).Rows()
 	if err != nil {
-		return nil, fmt.Errorf("error finding service credential binding: %w", err)
+		return nil, fmt.Errorf("error finding service binding credentials: %w", err)
 	}
 	defer rows.Close()
 

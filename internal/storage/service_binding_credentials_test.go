@@ -127,6 +127,34 @@ var _ = Describe("ServiceBindingCredentials", func() {
 			Expect(store.DeleteServiceBindingCredentials("not-there", "also-not-there")).NotTo(HaveOccurred())
 		})
 	})
+
+	Describe("GetServiceBindingIDs", func() {
+		BeforeEach(func() {
+			addFakeServiceCredentialBindings()
+		})
+
+		It("returns all service binding credentials for a given instance", func() {
+			r, err := store.GetServiceBindingIDs("fake-instance-id")
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(r[0].ServiceId).To(Equal("fake-other-service-id"))
+			Expect(r[0].ServiceInstanceId).To(Equal("fake-instance-id"))
+			Expect(r[0].BindingId).To(Equal("fake-other-binding-id"))
+			Expect(r[1].ServiceId).To(Equal("fake-service-id"))
+			Expect(r[1].ServiceInstanceId).To(Equal("fake-instance-id"))
+			Expect(r[1].BindingId).To(Equal("fake-binding-id"))
+		})
+
+		When("nothing is found", func() {
+			It("returns an empty list", func() {
+				bindingCredentials, err := store.GetServiceBindingIDs("not-there")
+				Expect(err).NotTo(HaveOccurred())
+				Expect(len(bindingCredentials)).To(Equal(0))
+			})
+		})
+
+	})
+
 })
 
 func addFakeServiceCredentialBindings() {
