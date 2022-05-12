@@ -101,7 +101,6 @@ func (broker *ServiceBroker) Update(ctx context.Context, instanceID string, deta
 		return domain.UpdateServiceSpec{}, err
 	}
 
-	// upgrade binding TF here
 	err = broker.upgradeBindingTF(ctx, instanceID, details)
 	if err != nil {
 		return domain.UpdateServiceSpec{}, err

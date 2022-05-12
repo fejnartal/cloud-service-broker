@@ -32,32 +32,35 @@ func (broker *ServiceBroker) upgradeBindingTF(ctx context.Context, instanceID st
 		return err
 	}
 
-	for _, binding := range bindingTFIDs {
-		// get existing service instance details
-		instance, err := broker.store.GetServiceInstanceDetails(instanceID)
-		if err != nil {
-			return fmt.Errorf("error retrieving service instance details: %s", err)
-		}
+	if len(bindingTFIDs) > 0 {
+		for _, binding := range bindingTFIDs {
+			// get existing service instance details
+			instance, err := broker.store.GetServiceInstanceDetails(instanceID)
+			if err != nil {
+				return fmt.Errorf("error retrieving service instance details: %s", err)
+			}
 
-		storedParams, err := broker.store.GetBindRequestDetails(binding.BindingId, instanceID)
-		if err != nil {
-			return fmt.Errorf("error retrieving bind request details for %q: %w", instanceID, err)
-		}
+			storedParams, err := broker.store.GetBindRequestDetails(binding.BindingId, instanceID)
+			if err != nil {
+				return fmt.Errorf("error retrieving bind request details for %q: %w", instanceID, err)
+			}
 
-		parsedDetails := paramparser.BindDetails{
-			PlanID:        details.PlanID,
-			ServiceID:     details.ServiceID,
-			RequestParams: storedParams,
-		}
+			parsedDetails := paramparser.BindDetails{
+				PlanID:        details.PlanID,
+				ServiceID:     details.ServiceID,
+				RequestParams: storedParams,
+			}
 
-		vars, err := serviceDefinition.BindVariables(instance, binding.BindingId, parsedDetails, plan, request.DecodeOriginatingIdentityHeader(ctx))
-		if err != nil {
-			return err
-		}
+			vars, err := serviceDefinition.BindVariables(instance, binding.BindingId, parsedDetails, plan, request.DecodeOriginatingIdentityHeader(ctx))
+			if err != nil {
+				return err
+			}
 
-		if err := serviceProvider.UpgradeBinding(ctx, instanceID, binding.BindingId, vars); err != nil {
-			return err
+			if err := serviceProvider.UpgradeBinding(ctx, instanceID, binding.BindingId, vars); err != nil {
+				return err
+			}
 		}
 	}
+
 	return nil
 }
