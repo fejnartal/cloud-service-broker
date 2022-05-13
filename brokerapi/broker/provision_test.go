@@ -10,7 +10,6 @@ import (
 
 	"github.com/cloudfoundry/cloud-service-broker/pkg/varcontext"
 
-	"code.cloudfoundry.org/lager"
 	"github.com/cloudfoundry/cloud-service-broker/brokerapi/broker"
 	"github.com/cloudfoundry/cloud-service-broker/brokerapi/broker/brokerfakes"
 	"github.com/cloudfoundry/cloud-service-broker/internal/storage"
@@ -39,6 +38,7 @@ var _ = Describe("Provision", func() {
 		provisionDetails domain.ProvisionDetails
 
 		fakeStorage         *brokerfakes.FakeStorage
+		fakeProviderBuilder *brokerfakes.FakeProviderBuilder
 		fakeServiceProvider *pkgBrokerFakes.FakeServiceProvider
 	)
 
@@ -48,10 +48,9 @@ var _ = Describe("Provision", func() {
 			OperationType: models.ProvisionOperationType,
 			OperationGUID: operationID,
 		}, nil)
+		fakeProviderBuilder = &brokerfakes.FakeProviderBuilder{}
+		fakeProviderBuilder.BuildProviderReturns(fakeServiceProvider)
 
-		providerBuilder := func(logger lager.Logger, store pkgBroker.ServiceProviderStorage) pkgBroker.ServiceProvider {
-			return fakeServiceProvider
-		}
 		brokerConfig := &broker.BrokerConfig{
 			Registry: pkgBroker.BrokerRegistry{
 				"test-service": &pkgBroker.ServiceDefinition{
@@ -98,7 +97,6 @@ var _ = Describe("Provision", func() {
 						{Name: "labels", Default: "${json.marshal(request.default_labels)}", Overwrite: true},
 						{Name: "copyOriginatingIdentity", Default: "${json.marshal(request.x_broker_api_originating_identity)}", Overwrite: true},
 					},
-					ProviderBuilder: providerBuilder,
 				},
 			},
 		}
@@ -107,7 +105,7 @@ var _ = Describe("Provision", func() {
 		fakeStorage.ExistsServiceInstanceDetailsReturns(false, nil)
 
 		var err error
-		serviceBroker, err = broker.New(brokerConfig, utils.NewLogger("brokers-test"), fakeStorage)
+		serviceBroker, err = broker.New(brokerConfig, utils.NewLogger("brokers-test"), fakeStorage, fakeProviderBuilder)
 		Expect(err).ToNot(HaveOccurred())
 
 		provisionDetails = domain.ProvisionDetails{

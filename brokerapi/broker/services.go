@@ -4,6 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"code.cloudfoundry.org/lager"
+	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/executor"
+	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/invoker"
+	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/workspace"
+
 	"github.com/cloudfoundry/cloud-service-broker/pkg/broker"
 	"github.com/pivotal-cf/brokerapi/v8/domain"
 )
@@ -31,8 +36,8 @@ func (broker *ServiceBroker) getDefinitionAndProvider(serviceID string) (*broker
 		return nil, nil, err
 	}
 
-	providerBuilder := defn.ProviderBuilder(broker.Logger, broker.store)
-	return defn, providerBuilder, nil
+	serviceProvider := broker.providerBuilder.BuildProvider(defn, broker.store, broker.Logger)
+	return defn, serviceProvider, nil
 }
 
 func (broker *ServiceBroker) getServiceName(def *broker.ServiceDefinition) string {
@@ -41,4 +46,11 @@ func (broker *ServiceBroker) getServiceName(def *broker.ServiceDefinition) strin
 
 func getCredentialName(serviceName, bindingID string) string {
 	return fmt.Sprintf("/c/%s/%s/%s/secrets-and-services", credhubClientIdentifier, serviceName, bindingID)
+}
+
+type TFProviderBuilder struct{}
+
+func (p TFProviderBuilder) BuildProvider(defn *broker.ServiceDefinition, store broker.ServiceProviderStorage, logger lager.Logger) broker.ServiceProvider {
+	executorFactory := executor.NewExecutorFactory(defn.TfBinContext.Dir, defn.TfBinContext.Params, defn.EnvVars)
+	return broker.NewTerraformProvider(broker.NewTfJobRunner(store, defn.TfBinContext, workspace.NewWorkspaceFactory(), invoker.NewTerraformInvokerFactory(executorFactory, defn.TfBinContext.Dir, defn.TfBinContext.ProviderReplacements)), logger, defn.ConstDefn, store)
 }

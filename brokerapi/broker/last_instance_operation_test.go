@@ -3,7 +3,6 @@ package broker_test
 import (
 	"errors"
 
-	"code.cloudfoundry.org/lager"
 	"github.com/cloudfoundry/cloud-service-broker/brokerapi/broker/brokerfakes"
 	"github.com/cloudfoundry/cloud-service-broker/dbservice/models"
 	"github.com/cloudfoundry/cloud-service-broker/internal/storage"
@@ -34,6 +33,7 @@ var _ = Describe("LastInstanceOperation", func() {
 		pollDetails   domain.PollDetails
 
 		fakeStorage         *brokerfakes.FakeStorage
+		fakeProviderBuilder *brokerfakes.FakeProviderBuilder
 		fakeServiceProvider *pkgBrokerFakes.FakeServiceProvider
 		expectedTFOutput    storage.JSONObject
 	)
@@ -44,9 +44,9 @@ var _ = Describe("LastInstanceOperation", func() {
 		fakeServiceProvider.GetTerraformOutputsReturns(expectedTFOutput, nil)
 		fakeServiceProvider.PollInstanceReturns(true, "operation complete", nil)
 
-		providerBuilder := func(logger lager.Logger, store pkgBroker.ServiceProviderStorage) pkgBroker.ServiceProvider {
-			return fakeServiceProvider
-		}
+		fakeProviderBuilder = &brokerfakes.FakeProviderBuilder{}
+		fakeProviderBuilder.BuildProviderReturns(fakeServiceProvider)
+
 		brokerConfig := &broker.BrokerConfig{
 			Registry: pkgBroker.BrokerRegistry{
 				"test-service": &pkgBroker.ServiceDefinition{
@@ -60,7 +60,6 @@ var _ = Describe("LastInstanceOperation", func() {
 							},
 						},
 					},
-					ProviderBuilder: providerBuilder,
 				},
 			},
 		}
@@ -78,7 +77,7 @@ var _ = Describe("LastInstanceOperation", func() {
 			}, nil)
 
 		var err error
-		serviceBroker, err = broker.New(brokerConfig, utils.NewLogger("brokers-test"), fakeStorage)
+		serviceBroker, err = broker.New(brokerConfig, utils.NewLogger("brokers-test"), fakeStorage, fakeProviderBuilder)
 		Expect(err).ToNot(HaveOccurred())
 
 		pollDetails = domain.PollDetails{

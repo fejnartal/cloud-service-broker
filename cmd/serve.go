@@ -90,7 +90,7 @@ func serve() {
 		logger.Fatal("Error initializing service broker config", err)
 	}
 	var serviceBroker domain.ServiceBroker
-	serviceBroker, err = osbapiBroker.New(cfg, logger, storage.New(db, encryptor))
+	serviceBroker, err = osbapiBroker.New(cfg, logger, storage.New(db, encryptor), osbapiBroker.TFProviderBuilder{})
 	if err != nil {
 		logger.Fatal("Error initializing service broker", err)
 	}

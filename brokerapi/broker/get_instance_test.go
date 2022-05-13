@@ -13,7 +13,7 @@ import (
 
 var _ = Describe("GetInstance", func() {
 	It("is not implemented", func() {
-		serviceBroker, err := broker.New(&broker.BrokerConfig{}, utils.NewLogger("brokers-test"), &brokerfakes.FakeStorage{})
+		serviceBroker, err := broker.New(&broker.BrokerConfig{}, utils.NewLogger("brokers-test"), &brokerfakes.FakeStorage{}, &brokerfakes.FakeProviderBuilder{})
 		Expect(err).ToNot(HaveOccurred())
 
 		_, err = serviceBroker.GetInstance(context.TODO(), "instance-id", domain.FetchInstanceDetails{})

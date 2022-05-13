@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"code.cloudfoundry.org/lager"
 	"github.com/cloudfoundry/cloud-service-broker/brokerapi/broker/brokerfakes"
 	"github.com/cloudfoundry/cloud-service-broker/dbservice/models"
 	"github.com/cloudfoundry/cloud-service-broker/internal/storage"
@@ -39,15 +38,15 @@ var _ = Describe("Update", func() {
 		updateDetails domain.UpdateDetails
 
 		fakeStorage         *brokerfakes.FakeStorage
+		fakeProviderBuilder *brokerfakes.FakeProviderBuilder
 		fakeServiceProvider *pkgBrokerFakes.FakeServiceProvider
 	)
 
 	BeforeEach(func() {
 		fakeServiceProvider = &pkgBrokerFakes.FakeServiceProvider{}
+		fakeProviderBuilder = &brokerfakes.FakeProviderBuilder{}
+		fakeProviderBuilder.BuildProviderReturns(fakeServiceProvider)
 
-		providerBuilder := func(logger lager.Logger, store pkgBroker.ServiceProviderStorage) pkgBroker.ServiceProvider {
-			return fakeServiceProvider
-		}
 		planUpdatable := true
 		brokerConfig := &broker.BrokerConfig{
 			Registry: pkgBroker.BrokerRegistry{
@@ -105,7 +104,6 @@ var _ = Describe("Update", func() {
 						{Name: "labels", Default: "${json.marshal(request.default_labels)}", Overwrite: true},
 						{Name: "copyOriginatingIdentity", Default: "${json.marshal(request.x_broker_api_originating_identity)}", Overwrite: true},
 					},
-					ProviderBuilder: providerBuilder,
 				},
 			},
 		}
@@ -123,7 +121,7 @@ var _ = Describe("Update", func() {
 		}, nil)
 
 		var err error
-		serviceBroker, err = broker.New(brokerConfig, utils.NewLogger("brokers-test"), fakeStorage)
+		serviceBroker, err = broker.New(brokerConfig, utils.NewLogger("brokers-test"), fakeStorage, fakeProviderBuilder)
 		Expect(err).ToNot(HaveOccurred())
 
 		updateDetails = domain.UpdateDetails{

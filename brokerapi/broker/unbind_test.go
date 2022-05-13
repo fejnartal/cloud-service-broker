@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"code.cloudfoundry.org/lager"
 	"github.com/cloudfoundry/cloud-service-broker/brokerapi/broker"
 	"github.com/cloudfoundry/cloud-service-broker/brokerapi/broker/brokerfakes"
 	"github.com/cloudfoundry/cloud-service-broker/dbservice/models"
@@ -38,6 +37,7 @@ var _ = Describe("Unbind", func() {
 
 		fakeStorage         *brokerfakes.FakeStorage
 		fakeServiceProvider *pkgBrokerFakes.FakeServiceProvider
+		fakeProviderBuilder *brokerfakes.FakeProviderBuilder
 		fakeCredStore       *credstorefakes.FakeCredStore
 
 		brokerConfig *broker.BrokerConfig
@@ -46,6 +46,8 @@ var _ = Describe("Unbind", func() {
 	BeforeEach(func() {
 		fakeServiceProvider = &pkgBrokerFakes.FakeServiceProvider{}
 		fakeServiceProvider.UnbindReturns(nil)
+		fakeProviderBuilder = &brokerfakes.FakeProviderBuilder{}
+		fakeProviderBuilder.BuildProviderReturns(fakeServiceProvider)
 
 		fakeStorage = &brokerfakes.FakeStorage{}
 		fakeStorage.ExistsServiceBindingCredentialsReturns(true, nil)
@@ -62,9 +64,6 @@ var _ = Describe("Unbind", func() {
 
 		fakeCredStore = &credstorefakes.FakeCredStore{}
 
-		providerBuilder := func(logger lager.Logger, store pkgBroker.ServiceProviderStorage) pkgBroker.ServiceProvider {
-			return fakeServiceProvider
-		}
 		planUpdatable := true
 
 		brokerConfig = &broker.BrokerConfig{
@@ -88,14 +87,13 @@ var _ = Describe("Unbind", func() {
 					BindComputedVariables: []varcontext.DefaultVariable{
 						{Name: "copyOriginatingIdentity", Default: "${json.marshal(request.x_broker_api_originating_identity)}", Overwrite: true},
 					},
-					ProviderBuilder: providerBuilder,
 				},
 			},
 			Credstore: fakeCredStore,
 		}
 
 		var err error
-		serviceBroker, err = broker.New(brokerConfig, utils.NewLogger("unbind-test-with-credstore"), fakeStorage)
+		serviceBroker, err = broker.New(brokerConfig, utils.NewLogger("unbind-test-with-credstore"), fakeStorage, fakeProviderBuilder)
 		Expect(err).ToNot(HaveOccurred())
 
 		unbindDetails = domain.UnbindDetails{
@@ -161,7 +159,7 @@ var _ = Describe("Unbind", func() {
 			BeforeEach(func() {
 				brokerConfig.Credstore = nil
 				var err error
-				serviceBroker, err = broker.New(brokerConfig, utils.NewLogger("unbind-test-no-credstore"), fakeStorage)
+				serviceBroker, err = broker.New(brokerConfig, utils.NewLogger("unbind-test-no-credstore"), fakeStorage, fakeProviderBuilder)
 				Expect(err).ToNot(HaveOccurred())
 			})
 

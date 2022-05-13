@@ -34,23 +34,31 @@ func init() {
 	viper.BindEnv(DisableRequestPropertyValidation, "CSB_DISABLE_REQUEST_PROPERTY_VALIDATION")
 }
 
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
+//counterfeiter:generate . ProviderBuilder
+type ProviderBuilder interface {
+	BuildProvider(defn *broker.ServiceDefinition, store broker.ServiceProviderStorage, logger lager.Logger) broker.ServiceProvider
+}
+
 // ServiceBroker is a brokerapi.ServiceBroker that can be used to generate an OSB compatible service broker.
 type ServiceBroker struct {
 	registry  broker.BrokerRegistry
 	Credstore credstore.CredStore
 
-	Logger lager.Logger
-	store  Storage
+	Logger          lager.Logger
+	store           Storage
+	providerBuilder ProviderBuilder
 }
 
 // New creates a ServiceBroker.
 // Exactly one of ServiceBroker or error will be nil when returned.
-func New(cfg *BrokerConfig, logger lager.Logger, store Storage) (*ServiceBroker, error) {
+func New(cfg *BrokerConfig, logger lager.Logger, store Storage, providerBuilder ProviderBuilder) (*ServiceBroker, error) {
 	return &ServiceBroker{
-		registry:  cfg.Registry,
-		Credstore: cfg.Credstore,
-		Logger:    logger,
-		store:     store,
+		registry:        cfg.Registry,
+		Credstore:       cfg.Credstore,
+		Logger:          logger,
+		store:           store,
+		providerBuilder: providerBuilder,
 	}, nil
 }
 

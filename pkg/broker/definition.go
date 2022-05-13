@@ -21,7 +21,6 @@ import (
 
 	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/executor"
 
-	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/invoker"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/workspace"
 
 	"code.cloudfoundry.org/lager"
@@ -287,10 +286,13 @@ func (tfb *TfServiceDefinitionV1) ToService(tfBinContext executor.TFBinariesCont
 		BindOutputVariables:   append(tfb.ProvisionSettings.Outputs, tfb.BindSettings.Outputs...),
 		PlanVariables:         append(tfb.ProvisionSettings.PlanInputs, tfb.BindSettings.PlanInputs...),
 		Examples:              tfb.Examples,
-		ProviderBuilder: func(logger lager.Logger, store ServiceProviderStorage) ServiceProvider {
-			executorFactory := executor.NewExecutorFactory(tfBinContext.Dir, tfBinContext.Params, envVars)
-			return NewTerraformProvider(NewTfJobRunner(store, tfBinContext, workspace.NewWorkspaceFactory(), invoker.NewTerraformInvokerFactory(executorFactory, tfBinContext.Dir, tfBinContext.ProviderReplacements)), logger, constDefn, store)
-		},
+		TfBinContext:          tfBinContext,
+		EnvVars:               envVars,
+		ConstDefn:             constDefn,
+		//ProviderBuilder: func(logger lager.Logger, store broker.ServiceProviderStorage) broker.ServiceProvider {
+		//	//executorFactory := executor.NewExecutorFactory(tfBinContext.Dir, tfBinContext.Params, envVars)
+		//	//return NewTerraformProvider(NewTfJobRunner(store, tfBinContext, workspace.NewWorkspaceFactory(), invoker.NewTerraformInvokerFactory(executorFactory, tfBinContext.Dir, tfBinContext.ProviderReplacements)), logger, constDefn, store)
+		//},
 	}, nil
 }
 

@@ -12,7 +12,7 @@ import (
 
 var _ = Describe("GetBinding", func() {
 	It("is not implemented", func() {
-		serviceBroker, err := broker.New(&broker.BrokerConfig{}, utils.NewLogger("brokers-test"), &brokerfakes.FakeStorage{})
+		serviceBroker, err := broker.New(&broker.BrokerConfig{}, utils.NewLogger("brokers-test"), &brokerfakes.FakeStorage{}, &brokerfakes.FakeProviderBuilder{})
 		Expect(err).ToNot(HaveOccurred())
 
 		_, err = serviceBroker.GetBinding(context.TODO(), "instance-id", "binding-id", domain.FetchBindingDetails{})

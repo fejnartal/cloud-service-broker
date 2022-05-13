@@ -13,7 +13,7 @@ import (
 
 var _ = Describe("LastBindingOperation", func() {
 	It("is not implemented for async bindings", func() {
-		serviceBroker, err := broker.New(&broker.BrokerConfig{}, utils.NewLogger("brokers-test"), &brokerfakes.FakeStorage{})
+		serviceBroker, err := broker.New(&broker.BrokerConfig{}, utils.NewLogger("brokers-test"), &brokerfakes.FakeStorage{}, &brokerfakes.FakeProviderBuilder{})
 		Expect(err).ToNot(HaveOccurred())
 
 		_, err = serviceBroker.LastBindingOperation(context.TODO(), "instance-id", "binding-id", domain.PollDetails{})

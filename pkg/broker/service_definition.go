@@ -20,7 +20,8 @@ import (
 	"os"
 	"strings"
 
-	"code.cloudfoundry.org/lager"
+	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/executor"
+
 	"github.com/cloudfoundry/cloud-service-broker/internal/paramparser"
 	"github.com/cloudfoundry/cloud-service-broker/internal/storage"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/toggles"
@@ -62,10 +63,13 @@ type ServiceDefinition struct {
 	DefaultRoleWhitelist       []string
 
 	// ProviderBuilder creates a new provider given the project, auth, and logger.
-	ProviderBuilder func(plogger lager.Logger, store ServiceProviderStorage) ServiceProvider
+	//ProviderBuilder func(plogger lager.Logger, store ServiceProviderStorage) ServiceProvider
 
 	// IsBuiltin is true if the service is built-in to the platform.
-	IsBuiltin bool
+	IsBuiltin    bool
+	TfBinContext executor.TFBinariesContext
+	EnvVars      map[string]string
+	ConstDefn    TfServiceDefinitionV1
 }
 
 var _ validation.Validatable = (*ServiceDefinition)(nil)
