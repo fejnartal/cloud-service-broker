@@ -28,10 +28,12 @@ func (broker *ServiceBroker) LastOperation(ctx context.Context, instanceID strin
 		return domain.LastOperation{}, apiresponses.ErrInstanceDoesNotExist
 	}
 
-	_, serviceProvider, err := broker.getDefinitionAndProvider(instance.ServiceGUID)
+	serviceDefinition, err := broker.getDefinition(instance.ServiceGUID)
 	if err != nil {
 		return domain.LastOperation{}, err
 	}
+
+	serviceProvider := broker.providerBuilder.BuildProvider(serviceDefinition, broker.store, broker.Logger)
 
 	lastOperationType := instance.OperationType
 

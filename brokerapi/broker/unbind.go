@@ -22,10 +22,12 @@ func (broker *ServiceBroker) Unbind(ctx context.Context, instanceID, bindingID s
 	})
 
 	// verify the service exists and the plan exists
-	serviceDefinition, serviceProvider, err := broker.getDefinitionAndProvider(details.ServiceID)
+	serviceDefinition, err := broker.getDefinition(details.ServiceID)
 	if err != nil {
 		return domain.UnbindSpec{}, err
 	}
+
+	serviceProvider := broker.providerBuilder.BuildProvider(serviceDefinition, broker.store, broker.Logger)
 
 	plan, err := serviceDefinition.GetPlanByID(details.PlanID)
 	if err != nil {

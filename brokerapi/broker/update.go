@@ -40,10 +40,12 @@ func (broker *ServiceBroker) Update(ctx context.Context, instanceID string, deta
 		return response, fmt.Errorf("database error getting existing instance: %s", err)
 	}
 
-	serviceDefinition, serviceProvider, err := broker.getDefinitionAndProvider(instance.ServiceGUID)
+	serviceDefinition, err := broker.getDefinition(instance.ServiceGUID)
 	if err != nil {
 		return response, err
 	}
+
+	serviceProvider := broker.providerBuilder.BuildProvider(serviceDefinition, broker.store, broker.Logger)
 
 	parsedDetails, err := paramparser.ParseUpdateDetails(details)
 	if err != nil {

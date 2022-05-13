@@ -53,10 +53,12 @@ func (broker *ServiceBroker) Provision(ctx context.Context, instanceID string, d
 		return domain.ProvisionedServiceSpec{}, ErrInvalidUserInput
 	}
 
-	serviceDefinition, serviceProvider, err := broker.getDefinitionAndProvider(parsedDetails.ServiceID)
+	serviceDefinition, err := broker.getDefinition(parsedDetails.ServiceID)
 	if err != nil {
 		return domain.ProvisionedServiceSpec{}, err
 	}
+
+	serviceProvider := broker.providerBuilder.BuildProvider(serviceDefinition, broker.store, broker.Logger)
 
 	// verify the service exists and the plan exists
 	plan, err := serviceDefinition.GetPlanByID(parsedDetails.PlanID)

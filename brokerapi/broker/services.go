@@ -30,14 +30,13 @@ func (broker *ServiceBroker) Services(ctx context.Context) ([]domain.Service, er
 	return svcs, nil
 }
 
-func (broker *ServiceBroker) getDefinitionAndProvider(serviceID string) (*broker.ServiceDefinition, broker.ServiceProvider, error) {
+func (broker *ServiceBroker) getDefinition(serviceID string) (*broker.ServiceDefinition, error) {
 	defn, err := broker.registry.GetServiceByID(serviceID)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	serviceProvider := broker.providerBuilder.BuildProvider(defn, broker.store, broker.Logger)
-	return defn, serviceProvider, nil
+	return defn, nil
 }
 
 func (broker *ServiceBroker) getServiceName(def *broker.ServiceDefinition) string {

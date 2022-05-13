@@ -46,10 +46,12 @@ func (broker *ServiceBroker) Bind(ctx context.Context, instanceID, bindingID str
 		return domain.Binding{}, fmt.Errorf("error retrieving service instance details: %w", err)
 	}
 
-	serviceDefinition, serviceProvider, err := broker.getDefinitionAndProvider(instanceRecord.ServiceGUID)
+	serviceDefinition, err := broker.getDefinition(instanceRecord.ServiceGUID)
 	if err != nil {
 		return domain.Binding{}, fmt.Errorf("error retrieving service definition: %w", err)
 	}
+
+	serviceProvider := broker.providerBuilder.BuildProvider(serviceDefinition, broker.store, broker.Logger)
 
 	parsedDetails, err := paramparser.ParseBindDetails(details)
 	if err != nil {

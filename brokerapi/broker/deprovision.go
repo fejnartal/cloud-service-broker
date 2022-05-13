@@ -41,10 +41,12 @@ func (broker *ServiceBroker) Deprovision(ctx context.Context, instanceID string,
 		return response, fmt.Errorf("database error getting existing instance: %s", err)
 	}
 
-	serviceDefinition, serviceProvider, err := broker.getDefinitionAndProvider(instance.ServiceGUID)
+	serviceDefinition, err := broker.getDefinition(instance.ServiceGUID)
 	if err != nil {
 		return response, err
 	}
+
+	serviceProvider := broker.providerBuilder.BuildProvider(serviceDefinition, broker.store, broker.Logger)
 
 	// verify the service exists and the plan exists
 	plan, err := serviceDefinition.GetPlanByID(details.PlanID)
