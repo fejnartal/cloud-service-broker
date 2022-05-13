@@ -1,3 +1,4 @@
+// Package request implements parsing of the OriginatingIdentityHeader
 package request
 
 import (

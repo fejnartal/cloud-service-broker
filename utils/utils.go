@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package utils implements some utilities. It is a bad pattern as it
+// doesn't encourage good naming. Don't add more to this package.
 package utils
 
 import (

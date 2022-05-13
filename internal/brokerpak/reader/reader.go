@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package reader can parse and serialise brokerpak manifest files
 package reader
 
 import (

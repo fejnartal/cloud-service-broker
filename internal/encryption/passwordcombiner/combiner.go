@@ -1,3 +1,4 @@
+// Package passwordcombiner combines provided passwords with stored password metadata
 package passwordcombiner
 
 import (

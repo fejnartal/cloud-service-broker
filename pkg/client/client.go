@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package client implements a Open Service Broker API client for testing
+// and debugging
 package client
 
 import (

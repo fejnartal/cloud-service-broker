@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package broker implements the brokerapi.domain.ServiceBroker interface enabling it to
+// implement the Open Service Broker API
 package broker
 
 import (

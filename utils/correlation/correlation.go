@@ -1,3 +1,4 @@
+// Package correlation parses correlation IDs for logging
 package correlation
 
 import (
