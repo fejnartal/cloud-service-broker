@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf"
+	"github.com/cloudfoundry/cloud-service-broker/pkg/broker"
 
 	"github.com/cloudfoundry/cloud-service-broker/internal/brokerpak/manifest"
 	"github.com/cloudfoundry/cloud-service-broker/internal/brokerpak/packer"
@@ -187,7 +187,7 @@ func fakeBrokerpak(opts ...option) string {
 	Expect(stream.Copy(stream.FromYaml(m), stream.ToFile(dir, "manifest.yml"))).NotTo(HaveOccurred())
 
 	for _, path := range m.ServiceDefinitions {
-		Expect(stream.Copy(stream.FromYaml(tf.NewExampleTfServiceDefinition()), stream.ToFile(dir, path))).NotTo(HaveOccurred())
+		Expect(stream.Copy(stream.FromYaml(broker.NewExampleTfServiceDefinition()), stream.ToFile(dir, path))).NotTo(HaveOccurred())
 	}
 
 	packName := path.Join(GinkgoT().TempDir(), "fake.brokerpak")

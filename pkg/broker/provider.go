@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tf
+package broker
 
 import (
 	"context"
@@ -25,7 +25,6 @@ import (
 	"code.cloudfoundry.org/lager"
 	"github.com/cloudfoundry/cloud-service-broker/dbservice/models"
 	"github.com/cloudfoundry/cloud-service-broker/internal/storage"
-	"github.com/cloudfoundry/cloud-service-broker/pkg/broker"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/varcontext"
 	"github.com/cloudfoundry/cloud-service-broker/utils/correlation"
 	"github.com/pivotal-cf/brokerapi/v8/domain"
@@ -46,7 +45,7 @@ type JobRunner interface {
 }
 
 // NewTerraformProvider creates a new ServiceProvider backed by Terraform module definitions for provision and bind.
-func NewTerraformProvider(jobRunner JobRunner, logger lager.Logger, serviceDefinition TfServiceDefinitionV1, store broker.ServiceProviderStorage) broker.ServiceProvider {
+func NewTerraformProvider(jobRunner JobRunner, logger lager.Logger, serviceDefinition TfServiceDefinitionV1, store ServiceProviderStorage) ServiceProvider {
 	return &terraformProvider{
 		serviceDefinition: serviceDefinition,
 		jobRunner:         jobRunner,
@@ -59,7 +58,7 @@ type terraformProvider struct {
 	logger            lager.Logger
 	jobRunner         JobRunner
 	serviceDefinition TfServiceDefinitionV1
-	store             broker.ServiceProviderStorage
+	store             ServiceProviderStorage
 }
 
 // BuildInstanceCredentials combines the bind credentials with the connection
@@ -285,7 +284,7 @@ func (provider *terraformProvider) GetTerraformOutputs(ctx context.Context, guid
 	return outs, nil
 }
 
-func (provider *terraformProvider) GetImportedProperties(ctx context.Context, planGUID string, instanceGUID string, inputVariables []broker.BrokerVariable) (map[string]interface{}, error) {
+func (provider *terraformProvider) GetImportedProperties(ctx context.Context, planGUID string, instanceGUID string, inputVariables []BrokerVariable) (map[string]interface{}, error) {
 	provider.logger.Debug("getImportedProperties", correlation.ID(ctx), lager.Data{})
 
 	if provider.isSubsumePlan(planGUID) {
@@ -305,7 +304,7 @@ func (provider *terraformProvider) GetImportedProperties(ctx context.Context, pl
 	return hclparser.GetParameters(tfHCL, varsToReplace)
 }
 
-func (provider *terraformProvider) getVarsToReplace(inputVariables []broker.BrokerVariable) []hclparser.ExtractVariable {
+func (provider *terraformProvider) getVarsToReplace(inputVariables []BrokerVariable) []hclparser.ExtractVariable {
 	var varsToReplace []hclparser.ExtractVariable
 	for _, vars := range inputVariables {
 		if vars.TFAttribute != "" {

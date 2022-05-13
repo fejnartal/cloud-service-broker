@@ -5,7 +5,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf"
+	"github.com/cloudfoundry/cloud-service-broker/pkg/broker"
+
 	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/workspace"
 )
 
@@ -35,12 +36,12 @@ type FakeJobRunner struct {
 	destroyReturnsOnCall map[int]struct {
 		result1 error
 	}
-	ImportStub        func(context.Context, string, []tf.ImportResource) error
+	ImportStub        func(context.Context, string, []broker.ImportResource) error
 	importMutex       sync.RWMutex
 	importArgsForCall []struct {
 		arg1 context.Context
 		arg2 string
-		arg3 []tf.ImportResource
+		arg3 []broker.ImportResource
 	}
 	importReturns struct {
 		result1 error
@@ -259,10 +260,10 @@ func (fake *FakeJobRunner) DestroyReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeJobRunner) Import(arg1 context.Context, arg2 string, arg3 []tf.ImportResource) error {
-	var arg3Copy []tf.ImportResource
+func (fake *FakeJobRunner) Import(arg1 context.Context, arg2 string, arg3 []broker.ImportResource) error {
+	var arg3Copy []broker.ImportResource
 	if arg3 != nil {
-		arg3Copy = make([]tf.ImportResource, len(arg3))
+		arg3Copy = make([]broker.ImportResource, len(arg3))
 		copy(arg3Copy, arg3)
 	}
 	fake.importMutex.Lock()
@@ -270,7 +271,7 @@ func (fake *FakeJobRunner) Import(arg1 context.Context, arg2 string, arg3 []tf.I
 	fake.importArgsForCall = append(fake.importArgsForCall, struct {
 		arg1 context.Context
 		arg2 string
-		arg3 []tf.ImportResource
+		arg3 []broker.ImportResource
 	}{arg1, arg2, arg3Copy})
 	stub := fake.ImportStub
 	fakeReturns := fake.importReturns
@@ -291,13 +292,13 @@ func (fake *FakeJobRunner) ImportCallCount() int {
 	return len(fake.importArgsForCall)
 }
 
-func (fake *FakeJobRunner) ImportCalls(stub func(context.Context, string, []tf.ImportResource) error) {
+func (fake *FakeJobRunner) ImportCalls(stub func(context.Context, string, []broker.ImportResource) error) {
 	fake.importMutex.Lock()
 	defer fake.importMutex.Unlock()
 	fake.ImportStub = stub
 }
 
-func (fake *FakeJobRunner) ImportArgsForCall(i int) (context.Context, string, []tf.ImportResource) {
+func (fake *FakeJobRunner) ImportArgsForCall(i int) (context.Context, string, []broker.ImportResource) {
 	fake.importMutex.RLock()
 	defer fake.importMutex.RUnlock()
 	argsForCall := fake.importArgsForCall[i]
@@ -753,4 +754,4 @@ func (fake *FakeJobRunner) recordInvocation(key string, args []interface{}) {
 	fake.invocations[key] = append(fake.invocations[key], args)
 }
 
-var _ tf.JobRunner = new(FakeJobRunner)
+var _ broker.JobRunner = new(FakeJobRunner)

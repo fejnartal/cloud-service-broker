@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tf
+package broker
 
 import (
 	"context"
@@ -32,7 +32,6 @@ import (
 	"code.cloudfoundry.org/lager"
 	"github.com/cloudfoundry/cloud-service-broker/dbservice/models"
 	"github.com/cloudfoundry/cloud-service-broker/internal/storage"
-	"github.com/cloudfoundry/cloud-service-broker/pkg/broker"
 	"github.com/cloudfoundry/cloud-service-broker/utils"
 	"github.com/cloudfoundry/cloud-service-broker/utils/correlation"
 )
@@ -51,7 +50,7 @@ func init() {
 }
 
 // NewTfJobRunner constructs a new JobRunner for the given project.
-func NewTfJobRunner(store broker.ServiceProviderStorage,
+func NewTfJobRunner(store ServiceProviderStorage,
 	tfBinContext executor.TFBinariesContext,
 	workspaceFactory workspace.WorkspaceBuilder,
 	invokerBuilder invoker.TerraformInvokerBuilder) *TfJobRunner {
@@ -75,7 +74,7 @@ func NewTfJobRunner(store broker.ServiceProviderStorage,
 // subsequent commands will operate on the same structure.
 type TfJobRunner struct {
 	// executor holds a custom executor that will be called when commands are run.
-	store        broker.ServiceProviderStorage
+	store        ServiceProviderStorage
 	tfBinContext executor.TFBinariesContext
 	workspace.WorkspaceBuilder
 	invoker.TerraformInvokerBuilder

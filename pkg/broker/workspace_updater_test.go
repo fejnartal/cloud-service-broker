@@ -1,12 +1,12 @@
-package tf_test
+package broker_test
 
 import (
 	"errors"
 
-	"github.com/cloudfoundry/cloud-service-broker/internal/storage"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/broker"
+
+	"github.com/cloudfoundry/cloud-service-broker/internal/storage"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/broker/brokerfakes"
-	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/workspace"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/varcontext"
 	. "github.com/onsi/ginkgo/v2"
@@ -43,7 +43,7 @@ var _ = Describe("WorkspaceUpdater", func() {
 	var (
 		vc                       *varcontext.VarContext
 		store                    *brokerfakes.FakeServiceProviderStorage
-		updatedProvisionSettings tf.TfServiceDefinitionV1Action
+		updatedProvisionSettings broker.TfServiceDefinitionV1Action
 	)
 
 	BeforeEach(func() {
@@ -83,7 +83,7 @@ var _ = Describe("WorkspaceUpdater", func() {
 		})
 
 		By("having an updated service definition from the brokerpak", func() {
-			updatedProvisionSettings = tf.TfServiceDefinitionV1Action{
+			updatedProvisionSettings = broker.TfServiceDefinitionV1Action{
 				PlanInputs: []broker.BrokerVariable{
 					{
 						FieldName: "resourceGroup",
@@ -111,7 +111,7 @@ var _ = Describe("WorkspaceUpdater", func() {
 		})
 
 		It("updates the modules but keeps the original state", func() {
-			err := tf.UpdateWorkspaceHCL(store, updatedProvisionSettings, vc, id)
+			err := broker.UpdateWorkspaceHCL(store, updatedProvisionSettings, vc, id)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("checking that the right deployment is retrieved")
@@ -157,7 +157,7 @@ var _ = Describe("WorkspaceUpdater", func() {
 			})
 
 			It("returns the error", func() {
-				err := tf.UpdateWorkspaceHCL(store, updatedProvisionSettings, vc, id)
+				err := broker.UpdateWorkspaceHCL(store, updatedProvisionSettings, vc, id)
 				Expect(err).To(MatchError("boom"))
 			})
 		})
@@ -171,21 +171,21 @@ var _ = Describe("WorkspaceUpdater", func() {
 			})
 
 			It("returns an error", func() {
-				err := tf.UpdateWorkspaceHCL(store, updatedProvisionSettings, vc, id)
+				err := broker.UpdateWorkspaceHCL(store, updatedProvisionSettings, vc, id)
 				Expect(err).To(MatchError(`invalid character 'o' in literal null (expecting 'u')`))
 			})
 		})
 
 		When("cannot create a workspace", func() {
 			It("returns the error", func() {
-				jammedOperationSettings := tf.TfServiceDefinitionV1Action{
+				jammedOperationSettings := broker.TfServiceDefinitionV1Action{
 					Template: `
 				resource "azurerm_mssql_database" "azure_sql_db" {
 				  name                = 
 				}
 				`,
 				}
-				err := tf.UpdateWorkspaceHCL(store, jammedOperationSettings, vc, id)
+				err := broker.UpdateWorkspaceHCL(store, jammedOperationSettings, vc, id)
 				Expect(err).To(MatchError(ContainSubstring("Invalid expression")))
 			})
 		})
@@ -196,7 +196,7 @@ var _ = Describe("WorkspaceUpdater", func() {
 			})
 
 			It("returns the error", func() {
-				err := tf.UpdateWorkspaceHCL(store, updatedProvisionSettings, vc, id)
+				err := broker.UpdateWorkspaceHCL(store, updatedProvisionSettings, vc, id)
 				Expect(err).To(MatchError("terraform provider create failed: fake error"))
 			})
 		})
@@ -204,7 +204,7 @@ var _ = Describe("WorkspaceUpdater", func() {
 
 	When("brokerpak updates disabled", func() {
 		It("does not update the store", func() {
-			err := tf.UpdateWorkspaceHCL(store, updatedProvisionSettings, vc, id)
+			err := broker.UpdateWorkspaceHCL(store, updatedProvisionSettings, vc, id)
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(store.StoreTerraformDeploymentCallCount()).To(BeZero())

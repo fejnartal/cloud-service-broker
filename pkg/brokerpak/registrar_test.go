@@ -21,7 +21,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/executor"
 
 	"github.com/cloudfoundry/cloud-service-broker/internal/brokerpak/manifest"
@@ -62,8 +61,8 @@ func TestNewRegistrar(t *testing.T) {
 }
 
 func TestRegistrar_toDefinitions(t *testing.T) {
-	fakeDefn := func(name, id string) tf.TfServiceDefinitionV1 {
-		ex := tf.NewExampleTfServiceDefinition()
+	fakeDefn := func(name, id string) broker.TfServiceDefinitionV1 {
+		ex := broker.NewExampleTfServiceDefinition()
 		ex.ID = id
 		ex.Name = "service-" + name
 
@@ -71,12 +70,12 @@ func TestRegistrar_toDefinitions(t *testing.T) {
 	}
 
 	goodCases := map[string]struct {
-		Services      []tf.TfServiceDefinitionV1
+		Services      []broker.TfServiceDefinitionV1
 		Config        BrokerpakSourceConfig
 		ExpectedNames []string
 	}{
 		"straight though": {
-			Services: []tf.TfServiceDefinitionV1{
+			Services: []broker.TfServiceDefinitionV1{
 				fakeDefn("foo", "b69a96ad-0c38-4e84-84a3-be9513e3c645"),
 				fakeDefn("bar", "f71f1327-2bce-41b4-a833-0ec6430dd7ca"),
 			},
@@ -87,7 +86,7 @@ func TestRegistrar_toDefinitions(t *testing.T) {
 			ExpectedNames: []string{"service-foo", "service-bar"},
 		},
 		"prefix": {
-			Services: []tf.TfServiceDefinitionV1{
+			Services: []broker.TfServiceDefinitionV1{
 				fakeDefn("foo", "b69a96ad-0c38-4e84-84a3-be9513e3c645"),
 				fakeDefn("bar", "f71f1327-2bce-41b4-a833-0ec6430dd7ca"),
 			},
@@ -98,7 +97,7 @@ func TestRegistrar_toDefinitions(t *testing.T) {
 			ExpectedNames: []string{"pre-service-foo", "pre-service-bar"},
 		},
 		"exclude-foo": {
-			Services: []tf.TfServiceDefinitionV1{
+			Services: []broker.TfServiceDefinitionV1{
 				fakeDefn("foo", "b69a96ad-0c38-4e84-84a3-be9513e3c645"),
 				fakeDefn("bar", "f71f1327-2bce-41b4-a833-0ec6430dd7ca"),
 			},
@@ -130,12 +129,12 @@ func TestRegistrar_toDefinitions(t *testing.T) {
 	}
 
 	badCases := map[string]struct {
-		Services      []tf.TfServiceDefinitionV1
+		Services      []broker.TfServiceDefinitionV1
 		Config        BrokerpakSourceConfig
 		ExpectedError string
 	}{
 		"bad service": {
-			Services: []tf.TfServiceDefinitionV1{
+			Services: []broker.TfServiceDefinitionV1{
 				fakeDefn("foo", "bad uuid"),
 			},
 			Config:        BrokerpakSourceConfig{},

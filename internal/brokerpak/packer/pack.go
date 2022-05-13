@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf"
+	"github.com/cloudfoundry/cloud-service-broker/pkg/broker"
 
 	"github.com/cloudfoundry/cloud-service-broker/internal/brokerpak/fetcher"
 	"github.com/hashicorp/go-getter"
@@ -129,12 +129,12 @@ func packDefinitions(m *manifest.Manifest, tmp, base string) error {
 
 	var (
 		servicePaths []string
-		catalog      tf.TfCatalogDefinitionV1
+		catalog      broker.TfCatalogDefinitionV1
 	)
 
 	for i, sd := range m.ServiceDefinitions {
 
-		defn := &tf.TfServiceDefinitionV1{}
+		defn := &broker.TfServiceDefinitionV1{}
 		if err := stream.Copy(stream.FromFile(base, sd), stream.ToYaml(defn)); err != nil {
 			return fmt.Errorf("couldn't parse %s: %v", sd, err)
 		}
@@ -176,7 +176,7 @@ func packDefinitions(m *manifest.Manifest, tmp, base string) error {
 	return nil
 }
 
-func clearRefs(sd *tf.TfServiceDefinitionV1Action) {
+func clearRefs(sd *broker.TfServiceDefinitionV1Action) {
 	sd.TemplateRef = ""
 	sd.TemplateRefs = make(map[string]string)
 }

@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf"
+	"github.com/cloudfoundry/cloud-service-broker/pkg/broker"
 
 	"github.com/cloudfoundry/cloud-service-broker/internal/brokerpak/fetcher"
 	"github.com/cloudfoundry/cloud-service-broker/internal/brokerpak/manifest"
@@ -77,15 +77,15 @@ func (pak *BrokerPakReader) Manifest() (*manifest.Manifest, error) {
 }
 
 // Services gets the list of services included in the pack.
-func (pak *BrokerPakReader) Services() ([]tf.TfServiceDefinitionV1, error) {
+func (pak *BrokerPakReader) Services() ([]broker.TfServiceDefinitionV1, error) {
 	manifest, err := pak.Manifest()
 	if err != nil {
 		return nil, err
 	}
 
-	var services []tf.TfServiceDefinitionV1
+	var services []broker.TfServiceDefinitionV1
 	for _, serviceDefinition := range manifest.ServiceDefinitions {
-		var receiver tf.TfServiceDefinitionV1
+		var receiver broker.TfServiceDefinitionV1
 		if err := pak.readYaml(serviceDefinition, &receiver); err != nil {
 			return nil, err
 		}

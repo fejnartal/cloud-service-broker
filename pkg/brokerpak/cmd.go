@@ -23,8 +23,6 @@ import (
 	"path/filepath"
 	"text/tabwriter"
 
-	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf"
-
 	"github.com/cloudfoundry/cloud-service-broker/internal/brokerpak/manifest"
 	"github.com/cloudfoundry/cloud-service-broker/internal/brokerpak/packer"
 	"github.com/cloudfoundry/cloud-service-broker/internal/brokerpak/reader"
@@ -46,7 +44,7 @@ func Init(directory string) error {
 		return err
 	}
 
-	if err := stream.Copy(stream.FromYaml(tf.NewExampleTfServiceDefinition()), stream.ToFile(directory, "example-service-definition.yml")); err != nil {
+	if err := stream.Copy(stream.FromYaml(broker.NewExampleTfServiceDefinition()), stream.ToFile(directory, "example-service-definition.yml")); err != nil {
 		return err
 	}
 

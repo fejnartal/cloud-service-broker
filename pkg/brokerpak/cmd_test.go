@@ -22,7 +22,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf"
+	"github.com/cloudfoundry/cloud-service-broker/pkg/broker"
 
 	"github.com/cloudfoundry/cloud-service-broker/internal/brokerpak/manifest"
 	"github.com/cloudfoundry/cloud-service-broker/internal/brokerpak/platform"
@@ -90,7 +90,7 @@ func fakeBrokerpak() (string, error) {
 	}
 
 	for _, path := range exampleManifest.ServiceDefinitions {
-		if err := stream.Copy(stream.FromYaml(tf.NewExampleTfServiceDefinition()), stream.ToFile(dir, path)); err != nil {
+		if err := stream.Copy(stream.FromYaml(broker.NewExampleTfServiceDefinition()), stream.ToFile(dir, path)); err != nil {
 			return "", err
 		}
 	}

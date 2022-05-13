@@ -1,15 +1,15 @@
-package tf_test
+package broker_test
 
 import (
 	"context"
 	"errors"
 
+	"github.com/cloudfoundry/cloud-service-broker/pkg/broker"
+
 	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/executor"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/workspace"
 
-	"github.com/cloudfoundry/cloud-service-broker/pkg/broker"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/broker/brokerfakes"
-	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/tffakes"
 	"github.com/cloudfoundry/cloud-service-broker/utils"
 	. "github.com/onsi/ginkgo/v2"
@@ -23,11 +23,11 @@ var _ = Describe("Provider", func() {
 				defaultPlanGUID := "6526a7be-8504-11ec-b558-276c48808143"
 				storage := new(brokerfakes.FakeServiceProviderStorage)
 
-				tfProvider := tf.NewTerraformProvider(
-					tf.NewTfJobRunner(storage, executor.TFBinariesContext{}, workspace.NewWorkspaceFactory(), nil),
+				tfProvider := broker.NewTerraformProvider(
+					broker.NewTfJobRunner(storage, executor.TFBinariesContext{}, workspace.NewWorkspaceFactory(), nil),
 					utils.NewLogger("test"),
-					tf.TfServiceDefinitionV1{
-						Plans: []tf.TfServiceDefinitionV1Plan{
+					broker.TfServiceDefinitionV1{
+						Plans: []broker.TfServiceDefinitionV1Plan{
 							{
 								Name: "default-plan",
 								ID:   defaultPlanGUID,
@@ -63,11 +63,11 @@ var _ = Describe("Provider", func() {
 				fakeJobRunner = new(tffakes.FakeJobRunner)
 				fakeJobRunner.ShowReturns("# azurerm_mssql_database.azure_sql_db:\nresource \"azurerm_mssql_database\" \"azure_sql_db\" {\nsubsume-key = \"subsume-value\"\n}\nOutputs:\nname = \"test-name\"", nil)
 
-				tfProvider = tf.NewTerraformProvider(
+				tfProvider = broker.NewTerraformProvider(
 					fakeJobRunner,
 					utils.NewLogger("test"),
-					tf.TfServiceDefinitionV1{
-						Plans: []tf.TfServiceDefinitionV1Plan{
+					broker.TfServiceDefinitionV1{
+						Plans: []broker.TfServiceDefinitionV1Plan{
 							{
 								Name: "subsume-plan",
 								ID:   subsumePlanGUID,

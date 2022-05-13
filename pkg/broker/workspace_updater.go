@@ -1,9 +1,8 @@
-package tf
+package broker
 
 import (
 	"fmt"
 
-	"github.com/cloudfoundry/cloud-service-broker/pkg/broker"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/workspace"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/varcontext"
 	"github.com/spf13/viper"
@@ -18,7 +17,7 @@ func init() {
 	viper.SetDefault(dynamicHCLEnabled, false)
 }
 
-func UpdateWorkspaceHCL(store broker.ServiceProviderStorage, action TfServiceDefinitionV1Action, operationContext *varcontext.VarContext, tfID string) error {
+func UpdateWorkspaceHCL(store ServiceProviderStorage, action TfServiceDefinitionV1Action, operationContext *varcontext.VarContext, tfID string) error {
 	if !viper.GetBool(dynamicHCLEnabled) {
 		return nil
 	}

@@ -22,6 +22,8 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/cloudfoundry/cloud-service-broker/pkg/broker"
+
 	"github.com/cloudfoundry/cloud-service-broker/dbservice"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/executor"
 
@@ -31,14 +33,13 @@ import (
 	"github.com/cloudfoundry/cloud-service-broker/internal/storage"
 
 	"github.com/cloudfoundry/cloud-service-broker/dbservice/models"
-	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf"
 	"github.com/cloudfoundry/cloud-service-broker/utils"
 	"github.com/spf13/cobra"
 	"gorm.io/gorm"
 )
 
 func init() {
-	var jobRunner *tf.TfJobRunner
+	var jobRunner *broker.TfJobRunner
 	var db *gorm.DB
 
 	tfCmd := &cobra.Command{
@@ -50,7 +51,7 @@ func init() {
 			db = dbservice.New(logger)
 			encryptor := setupDBEncryption(db, logger)
 			store := storage.New(db, encryptor)
-			jobRunner = tf.NewTfJobRunner(store, executor.TFBinariesContext{}, workspace.NewWorkspaceFactory(), invoker.NewTerraformInvokerFactory(executor.NewExecutorFactory("", nil, nil), "", map[string]string{}))
+			jobRunner = broker.NewTfJobRunner(store, executor.TFBinariesContext{}, workspace.NewWorkspaceFactory(), invoker.NewTerraformInvokerFactory(executor.NewExecutorFactory("", nil, nil), "", map[string]string{}))
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
@@ -119,7 +120,7 @@ func init() {
 				lastUpdate := result.UpdatedAt.Format(time.RFC822)
 
 				elapsed := ""
-				if result.LastOperationState == tf.InProgress {
+				if result.LastOperationState == broker.InProgress {
 					elapsed = time.Since(result.UpdatedAt).Truncate(time.Second).String()
 				}
 

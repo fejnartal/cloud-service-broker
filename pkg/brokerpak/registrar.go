@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/executor"
 
 	"code.cloudfoundry.org/lager"
@@ -102,7 +101,7 @@ func (r *Registrar) Register(registry broker.BrokerRegistry) error {
 	})
 }
 
-func (Registrar) toDefinitions(services []tf.TfServiceDefinitionV1, config BrokerpakSourceConfig, tfBinariesContext executor.TFBinariesContext) ([]*broker.ServiceDefinition, error) {
+func (Registrar) toDefinitions(services []broker.TfServiceDefinitionV1, config BrokerpakSourceConfig, tfBinariesContext executor.TFBinariesContext) ([]*broker.ServiceDefinition, error) {
 	var out []*broker.ServiceDefinition
 
 	toIgnore := utils.NewStringSet(config.ExcludedServicesSlice()...)

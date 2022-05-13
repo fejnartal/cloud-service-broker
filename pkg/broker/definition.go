@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tf
+package broker
 
 import (
 	"fmt"
@@ -25,7 +25,6 @@ import (
 	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/workspace"
 
 	"code.cloudfoundry.org/lager"
-	"github.com/cloudfoundry/cloud-service-broker/pkg/broker"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/validation"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/varcontext"
 	"github.com/cloudfoundry/cloud-service-broker/utils"
@@ -62,18 +61,18 @@ func NewExampleTfServiceDefinition() TfServiceDefinitionV1 {
 			},
 		},
 		ProvisionSettings: TfServiceDefinitionV1Action{
-			PlanInputs: []broker.BrokerVariable{
+			PlanInputs: []BrokerVariable{
 				{
 					FieldName: "domain",
-					Type:      broker.JSONTypeString,
+					Type:      JSONTypeString,
 					Details:   "The domain name",
 					Required:  true,
 				},
 			},
-			UserInputs: []broker.BrokerVariable{
+			UserInputs: []BrokerVariable{
 				{
 					FieldName: "username",
-					Type:      broker.JSONTypeString,
+					Type:      JSONTypeString,
 					Details:   "The username to create",
 					Required:  true,
 				},
@@ -83,20 +82,20 @@ func NewExampleTfServiceDefinition() TfServiceDefinitionV1 {
             variable username {type = string}
             output email {value = "${var.username}@${var.domain}"}
 			`,
-			Outputs: []broker.BrokerVariable{
+			Outputs: []BrokerVariable{
 				{
 					FieldName: "email",
-					Type:      broker.JSONTypeString,
+					Type:      JSONTypeString,
 					Details:   "The combined email address",
 					Required:  true,
 				},
 			},
 		},
 		BindSettings: TfServiceDefinitionV1Action{
-			PlanInputs: []broker.BrokerVariable{
+			PlanInputs: []BrokerVariable{
 				{
 					FieldName: "password_special_chars",
-					Type:      broker.JSONTypeString,
+					Type:      JSONTypeString,
 					Details:   "Supply your own list of special characters to use for string generation.",
 					Required:  true,
 				},
@@ -118,16 +117,16 @@ func NewExampleTfServiceDefinition() TfServiceDefinitionV1 {
 
             output uri {value = "smtp://${var.address}:${random_string.password.result}@smtp.${var.domain}"}
 			`,
-			Outputs: []broker.BrokerVariable{
+			Outputs: []BrokerVariable{
 				{
 					FieldName: "uri",
-					Type:      broker.JSONTypeString,
+					Type:      JSONTypeString,
 					Details:   "The uri to use to connect to this service",
 					Required:  true,
 				},
 			},
 		},
-		Examples: []broker.ServiceExample{
+		Examples: []ServiceExample{
 			{
 				Name:            "Example",
 				Description:     "Examples are used for documenting your service AND as integration tests.",
@@ -153,7 +152,7 @@ type TfServiceDefinitionV1 struct {
 	Plans             []TfServiceDefinitionV1Plan `yaml:"plans"`
 	ProvisionSettings TfServiceDefinitionV1Action `yaml:"provision"`
 	BindSettings      TfServiceDefinitionV1Action `yaml:"bind"`
-	Examples          []broker.ServiceExample     `yaml:"examples"`
+	Examples          []ServiceExample            `yaml:"examples"`
 	PlanUpdateable    bool                        `yaml:"plan_updateable"`
 
 	RequiredEnvVars []string
@@ -222,7 +221,7 @@ func (tfb *TfServiceDefinitionV1) loadTemplates() error {
 
 // ToService converts the flat TfServiceDefinitionV1 into a broker.ServiceDefinition
 // that the registry can use.
-func (tfb *TfServiceDefinitionV1) ToService(tfBinContext executor.TFBinariesContext) (*broker.ServiceDefinition, error) {
+func (tfb *TfServiceDefinitionV1) ToService(tfBinContext executor.TFBinariesContext) (*ServiceDefinition, error) {
 	if err := tfb.loadTemplates(); err != nil {
 		return nil, err
 	}
@@ -236,7 +235,7 @@ func (tfb *TfServiceDefinitionV1) ToService(tfBinContext executor.TFBinariesCont
 		return nil, err
 	}
 
-	var rawPlans []broker.ServicePlan
+	var rawPlans []ServicePlan
 	for _, plan := range tfb.Plans {
 		rawPlans = append(rawPlans, plan.ToPlan())
 	}
@@ -263,7 +262,7 @@ func (tfb *TfServiceDefinitionV1) ToService(tfBinContext executor.TFBinariesCont
 	})
 
 	constDefn := *tfb
-	return &broker.ServiceDefinition{
+	return &ServiceDefinition{
 		ID:               tfb.ID,
 		Name:             tfb.Name,
 		Description:      tfb.Description,
@@ -288,7 +287,7 @@ func (tfb *TfServiceDefinitionV1) ToService(tfBinContext executor.TFBinariesCont
 		BindOutputVariables:   append(tfb.ProvisionSettings.Outputs, tfb.BindSettings.Outputs...),
 		PlanVariables:         append(tfb.ProvisionSettings.PlanInputs, tfb.BindSettings.PlanInputs...),
 		Examples:              tfb.Examples,
-		ProviderBuilder: func(logger lager.Logger, store broker.ServiceProviderStorage) broker.ServiceProvider {
+		ProviderBuilder: func(logger lager.Logger, store ServiceProviderStorage) ServiceProvider {
 			executorFactory := executor.NewExecutorFactory(tfBinContext.Dir, tfBinContext.Params, envVars)
 			return NewTerraformProvider(NewTfJobRunner(store, tfBinContext, workspace.NewWorkspaceFactory(), invoker.NewTerraformInvokerFactory(executorFactory, tfBinContext.Dir, tfBinContext.ProviderReplacements)), logger, constDefn, store)
 		},
@@ -322,7 +321,7 @@ func (plan *TfServiceDefinitionV1Plan) Validate() (errs *validation.FieldError) 
 }
 
 // ToPlan converts this plan definition to a broker.ServicePlan.
-func (plan *TfServiceDefinitionV1Plan) ToPlan() broker.ServicePlan {
+func (plan *TfServiceDefinitionV1Plan) ToPlan() ServicePlan {
 	masterPlan := domain.ServicePlan{
 		ID:          plan.ID,
 		Description: plan.Description,
@@ -334,7 +333,7 @@ func (plan *TfServiceDefinitionV1Plan) ToPlan() broker.ServicePlan {
 		},
 	}
 
-	return broker.ServicePlan{
+	return ServicePlan{
 		ServicePlan:        masterPlan,
 		ServiceProperties:  plan.Properties,
 		ProvisionOverrides: plan.ProvisionOverrides,
@@ -345,15 +344,15 @@ func (plan *TfServiceDefinitionV1Plan) ToPlan() broker.ServicePlan {
 // TfServiceDefinitionV1Action holds information needed to process user inputs
 // for a single provision or bind call.
 type TfServiceDefinitionV1Action struct {
-	PlanInputs               []broker.BrokerVariable      `yaml:"plan_inputs"`
-	UserInputs               []broker.BrokerVariable      `yaml:"user_inputs"`
+	PlanInputs               []BrokerVariable             `yaml:"plan_inputs"`
+	UserInputs               []BrokerVariable             `yaml:"user_inputs"`
 	Computed                 []varcontext.DefaultVariable `yaml:"computed_inputs"`
 	Template                 string                       `yaml:"template"`
 	TemplateRef              string                       `yaml:"template_ref"`
-	Outputs                  []broker.BrokerVariable      `yaml:"outputs"`
+	Outputs                  []BrokerVariable             `yaml:"outputs"`
 	Templates                map[string]string            `yaml:"templates"`
 	TemplateRefs             map[string]string            `yaml:"template_refs"`
-	ImportVariables          []broker.ImportVariable      `yaml:"import_inputs"`
+	ImportVariables          []ImportVariable             `yaml:"import_inputs"`
 	ImportParameterMappings  []ImportParameterMapping     `yaml:"import_parameter_mappings"`
 	ImportParametersToDelete []string                     `yaml:"import_parameters_to_delete"`
 	ImportParametersToAdd    []ImportParameterMapping     `yaml:"import_parameters_to_add"`
