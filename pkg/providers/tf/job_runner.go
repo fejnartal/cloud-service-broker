@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/executor"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/invoker"
@@ -30,8 +29,6 @@ import (
 	"github.com/spf13/viper"
 
 	"code.cloudfoundry.org/lager"
-	"github.com/cloudfoundry/cloud-service-broker/dbservice/models"
-	"github.com/cloudfoundry/cloud-service-broker/internal/storage"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/broker"
 	"github.com/cloudfoundry/cloud-service-broker/utils"
 	"github.com/cloudfoundry/cloud-service-broker/utils/correlation"
@@ -81,19 +78,6 @@ type TfJobRunner struct {
 	invoker.TerraformInvokerBuilder
 }
 
-func (runner *TfJobRunner) markJobStarted(deployment storage.TerraformDeployment, operationType string) error {
-	// update the deployment info
-	deployment.LastOperationType = operationType
-	deployment.LastOperationState = InProgress
-	deployment.LastOperationMessage = ""
-
-	if err := runner.store.StoreTerraformDeployment(deployment); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // ImportResource represents TF resource to IaaS resource ID mapping for import
 type ImportResource struct {
 	TfResource   string
@@ -102,62 +86,55 @@ type ImportResource struct {
 
 // Import runs `terraform import` and `terraform apply` on the given workspace in the background.
 // The status of the job can be found by polling the Status function.
-func (runner *TfJobRunner) Import(ctx context.Context, id string, importResources []ImportResource) error {
+func (runner *TfJobRunner) Import(ctx context.Context, id string, importResources []ImportResource) (error, workspace.Workspace) {
 	deployment, err := runner.store.GetTerraformDeployment(id)
 	if err != nil {
-		return err
+		return err, nil
 	}
 
 	workspace, err := workspace.DeserializeWorkspace(deployment.Workspace)
 	if err != nil {
-		return err
+		return err, nil
 	}
 
-	if err := runner.markJobStarted(deployment, models.ProvisionOperationType); err != nil {
-		return err
-	}
 	invoker := runner.DefaultInvoker()
 
-	go func() {
-		logger := utils.NewLogger("Import").WithData(correlation.ID(ctx))
-		resources := make(map[string]string)
-		for _, resource := range importResources {
-			resources[resource.TfResource] = resource.IaaSResource
-		}
+	logger := utils.NewLogger("Import").WithData(correlation.ID(ctx))
+	resources := make(map[string]string)
+	for _, resource := range importResources {
+		resources[resource.TfResource] = resource.IaaSResource
+	}
 
-		if err := invoker.Import(ctx, workspace, resources); err != nil {
-			logger.Error("Import Failed", err)
-			runner.operationFinished(err, workspace, deployment)
-			return
-		}
-		mainTf, err := invoker.Show(ctx, workspace)
+	if err := invoker.Import(ctx, workspace, resources); err != nil {
+		logger.Error("Import Failed", err)
+		return err, workspace
+	}
+	mainTf, err := invoker.Show(ctx, workspace)
+	if err == nil {
+		var tf string
+		var parameterVals map[string]string
+		tf, parameterVals, err = workspace.Transformer.ReplaceParametersInTf(workspace.Transformer.AddParametersInTf(workspace.Transformer.CleanTf(mainTf)))
 		if err == nil {
-			var tf string
-			var parameterVals map[string]string
-			tf, parameterVals, err = workspace.Transformer.ReplaceParametersInTf(workspace.Transformer.AddParametersInTf(workspace.Transformer.CleanTf(mainTf)))
-			if err == nil {
-				for pn, pv := range parameterVals {
-					workspace.Instances[0].Configuration[pn] = pv
-				}
-				workspace.Modules[0].Definitions["main"] = tf
+			for pn, pv := range parameterVals {
+				workspace.Instances[0].Configuration[pn] = pv
+			}
+			workspace.Modules[0].Definitions["main"] = tf
 
-				logger.Info("new workspace", lager.Data{
-					"workspace": workspace,
-					"tf":        tf,
-				})
+			logger.Info("new workspace", lager.Data{
+				"workspace": workspace,
+				"tf":        tf,
+			})
 
-				err = runner.terraformPlanToCheckNoResourcesDeleted(invoker, ctx, workspace, logger)
-				if err != nil {
-					logger.Error("plan failed", err)
-				} else {
-					err = invoker.Apply(ctx, workspace)
-				}
+			err = runner.terraformPlanToCheckNoResourcesDeleted(invoker, ctx, workspace, logger)
+			if err != nil {
+				logger.Error("plan failed", err)
+			} else {
+				err = invoker.Apply(ctx, workspace)
 			}
 		}
-		runner.operationFinished(err, workspace, deployment)
-	}()
+	}
+	return err, workspace
 
-	return nil
 }
 
 func (runner *TfJobRunner) terraformPlanToCheckNoResourcesDeleted(invoker invoker.TerraformInvoker, ctx context.Context, workspace *workspace.TerraformWorkspace, logger lager.Logger) error {
@@ -179,62 +156,44 @@ func (runner *TfJobRunner) VersionedInvoker(version *version.Version) invoker.Te
 
 // Create runs `terraform apply` on the given workspace in the background.
 // The status of the job can be found by polling the Status function.
-func (runner *TfJobRunner) Create(ctx context.Context, id string) error {
+func (runner *TfJobRunner) Create(ctx context.Context, id string) (error, workspace.Workspace) {
 	deployment, err := runner.store.GetTerraformDeployment(id)
 	if err != nil {
-		return fmt.Errorf("error getting TF deployment: %w", err)
-	}
-
-	workspace, err := workspace.DeserializeWorkspace(deployment.Workspace)
-	if err != nil {
-		return fmt.Errorf("error hydrating workspace: %w", err)
-	}
-
-	if err := runner.markJobStarted(deployment, models.ProvisionOperationType); err != nil {
-		return fmt.Errorf("error marking job started: %w", err)
-	}
-
-	go func() {
-		err := runner.DefaultInvoker().Apply(ctx, workspace)
-		runner.operationFinished(err, workspace, deployment)
-	}()
-
-	return nil
-}
-
-func (runner *TfJobRunner) Update(ctx context.Context, id string, templateVars map[string]interface{}) error {
-	deployment, err := runner.store.GetTerraformDeployment(id)
-	if err != nil {
-		return err
+		return fmt.Errorf("error getting TF deployment: %w", err), nil
 	}
 
 	workspace, err := runner.CreateWorkspace(deployment)
 	if err != nil {
-		return err
+		return fmt.Errorf("error hydrating workspace: %w", err), nil
 	}
 
-	if err := runner.markJobStarted(deployment, models.UpdateOperationType); err != nil {
-		return err
+	return runner.DefaultInvoker().Apply(ctx, workspace), workspace
+}
+
+func (runner *TfJobRunner) Update(ctx context.Context, id string, templateVars map[string]interface{}) (error, workspace.Workspace) {
+	deployment, err := runner.store.GetTerraformDeployment(id)
+	if err != nil {
+		return err, nil
 	}
 
-	go func() {
-		err = runner.performTerraformUpgrade(ctx, workspace)
-		if err != nil {
-			runner.operationFinished(err, workspace, deployment)
-			return
-		}
+	workspace, err := runner.CreateWorkspace(deployment)
+	if err != nil {
+		return err, nil
+	}
 
-		err = workspace.UpdateInstanceConfiguration(templateVars)
-		if err != nil {
-			runner.operationFinished(err, workspace, deployment)
-			return
-		}
+	err = runner.performTerraformUpgrade(ctx, workspace)
+	if err != nil {
+		return err, workspace
+	}
 
-		err = runner.DefaultInvoker().Apply(ctx, workspace)
-		runner.operationFinished(err, workspace, deployment)
-	}()
+	err = workspace.UpdateInstanceConfiguration(templateVars)
+	if err != nil {
+		return err, workspace
+	}
 
-	return nil
+	err = runner.DefaultInvoker().Apply(ctx, workspace)
+
+	return err, workspace
 }
 
 func (runner *TfJobRunner) performTerraformUpgrade(ctx context.Context, workspace workspace.Workspace) error {
@@ -266,20 +225,20 @@ func (runner *TfJobRunner) performTerraformUpgrade(ctx context.Context, workspac
 
 // Destroy runs `terraform destroy` on the given workspace in the background.
 // The status of the job can be found by polling the Status function.
-func (runner *TfJobRunner) Destroy(ctx context.Context, id string, templateVars map[string]interface{}) error {
+func (runner *TfJobRunner) Destroy(ctx context.Context, id string, templateVars map[string]interface{}) (error, workspace.Workspace) {
 	deployment, err := runner.store.GetTerraformDeployment(id)
 	if err != nil {
-		return err
+		return err, nil
 	}
 
 	workspace, err := workspace.DeserializeWorkspace(deployment.Workspace)
 	if err != nil {
-		return err
+		return err, nil
 	}
 
 	inputList, err := workspace.Modules[0].Inputs()
 	if err != nil {
-		return err
+		return err, nil
 	}
 
 	limitedConfig := make(map[string]interface{})
@@ -289,73 +248,13 @@ func (runner *TfJobRunner) Destroy(ctx context.Context, id string, templateVars 
 
 	workspace.Instances[0].Configuration = limitedConfig
 
-	if err := runner.markJobStarted(deployment, models.DeprovisionOperationType); err != nil {
-		return err
-	}
-
-	go func() {
-		err = runner.performTerraformUpgrade(ctx, workspace)
-		if err != nil {
-			runner.operationFinished(err, workspace, deployment)
-			return
-		}
-
-		err = runner.DefaultInvoker().Destroy(ctx, workspace)
-		runner.operationFinished(err, workspace, deployment)
-	}()
-
-	return nil
-}
-
-// operationFinished closes out the state of the background job so clients that
-// are polling can get the results.
-func (runner *TfJobRunner) operationFinished(err error, workspace workspace.Workspace, deployment storage.TerraformDeployment) error {
-	// we shouldn't update the status on update when updating the HCL, as the status comes either from the provision call or a previous update
-	if err == nil {
-		lastOperationMessage := ""
-		// maybe do if deployment.LastOperationType != "validation" so we don't do the status update on staging a job.
-		// previously we would only stage a job on provision so state would be empty and the outputs would be null.
-		outputs, err := workspace.Outputs(workspace.ModuleInstances()[0].InstanceName)
-		if err == nil {
-			if status, ok := outputs["status"]; ok {
-				lastOperationMessage = fmt.Sprintf("%v", status)
-			}
-		}
-		deployment.LastOperationState = Succeeded
-		deployment.LastOperationMessage = lastOperationMessage
-	} else {
-		deployment.LastOperationState = Failed
-		deployment.LastOperationMessage = err.Error()
-	}
-
-	workspaceString, err := workspace.Serialize()
+	err = runner.performTerraformUpgrade(ctx, workspace)
 	if err != nil {
-		deployment.LastOperationState = Failed
-		deployment.LastOperationMessage = fmt.Sprintf("couldn't serialize workspace, contact your operator for cleanup: %s", err.Error())
+		return err, workspace
 	}
 
-	deployment.Workspace = []byte(workspaceString)
-
-	return runner.store.StoreTerraformDeployment(deployment)
-}
-
-// Status gets the status of the most recent job on the workspace.
-// If isDone is true, then the status of the operation will not change again.
-// if isDone is false, then the operation is ongoing.
-func (runner *TfJobRunner) Status(ctx context.Context, id string) (bool, string, error) {
-	deployment, err := runner.store.GetTerraformDeployment(id)
-	if err != nil {
-		return true, "", err
-	}
-
-	switch deployment.LastOperationState {
-	case Succeeded:
-		return true, deployment.LastOperationMessage, nil
-	case Failed:
-		return true, deployment.LastOperationMessage, errors.New(deployment.LastOperationMessage)
-	default:
-		return false, deployment.LastOperationMessage, nil
-	}
+	err = runner.DefaultInvoker().Destroy(ctx, workspace)
+	return err, workspace
 }
 
 // Outputs gets the output variables for the given module instance in the workspace.
@@ -371,22 +270,6 @@ func (runner *TfJobRunner) Outputs(ctx context.Context, id, instanceName string)
 	}
 
 	return ws.Outputs(instanceName)
-}
-
-// Wait waits for an operation to complete, polling its status once per second.
-func (runner *TfJobRunner) Wait(ctx context.Context, id string) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-
-		case <-time.After(1 * time.Second):
-			isDone, _, err := runner.Status(ctx, id)
-			if isDone {
-				return err
-			}
-		}
-	}
 }
 
 // Show returns the output from terraform show command

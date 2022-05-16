@@ -6,10 +6,11 @@ import (
 	"sync"
 
 	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf"
+	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/workspace"
 )
 
 type FakeJobRunner struct {
-	CreateStub        func(context.Context, string) error
+	CreateStub        func(context.Context, string) (error, workspace.Workspace)
 	createMutex       sync.RWMutex
 	createArgsForCall []struct {
 		arg1 context.Context
@@ -17,11 +18,13 @@ type FakeJobRunner struct {
 	}
 	createReturns struct {
 		result1 error
+		result2 workspace.Workspace
 	}
 	createReturnsOnCall map[int]struct {
 		result1 error
+		result2 workspace.Workspace
 	}
-	DestroyStub        func(context.Context, string, map[string]interface{}) error
+	DestroyStub        func(context.Context, string, map[string]interface{}) (error, workspace.Workspace)
 	destroyMutex       sync.RWMutex
 	destroyArgsForCall []struct {
 		arg1 context.Context
@@ -30,11 +33,13 @@ type FakeJobRunner struct {
 	}
 	destroyReturns struct {
 		result1 error
+		result2 workspace.Workspace
 	}
 	destroyReturnsOnCall map[int]struct {
 		result1 error
+		result2 workspace.Workspace
 	}
-	ImportStub        func(context.Context, string, []tf.ImportResource) error
+	ImportStub        func(context.Context, string, []tf.ImportResource) (error, workspace.Workspace)
 	importMutex       sync.RWMutex
 	importArgsForCall []struct {
 		arg1 context.Context
@@ -43,9 +48,11 @@ type FakeJobRunner struct {
 	}
 	importReturns struct {
 		result1 error
+		result2 workspace.Workspace
 	}
 	importReturnsOnCall map[int]struct {
 		result1 error
+		result2 workspace.Workspace
 	}
 	OutputsStub        func(context.Context, string, string) (map[string]interface{}, error)
 	outputsMutex       sync.RWMutex
@@ -76,23 +83,7 @@ type FakeJobRunner struct {
 		result1 string
 		result2 error
 	}
-	StatusStub        func(context.Context, string) (bool, string, error)
-	statusMutex       sync.RWMutex
-	statusArgsForCall []struct {
-		arg1 context.Context
-		arg2 string
-	}
-	statusReturns struct {
-		result1 bool
-		result2 string
-		result3 error
-	}
-	statusReturnsOnCall map[int]struct {
-		result1 bool
-		result2 string
-		result3 error
-	}
-	UpdateStub        func(context.Context, string, map[string]interface{}) error
+	UpdateStub        func(context.Context, string, map[string]interface{}) (error, workspace.Workspace)
 	updateMutex       sync.RWMutex
 	updateArgsForCall []struct {
 		arg1 context.Context
@@ -101,27 +92,17 @@ type FakeJobRunner struct {
 	}
 	updateReturns struct {
 		result1 error
+		result2 workspace.Workspace
 	}
 	updateReturnsOnCall map[int]struct {
 		result1 error
-	}
-	WaitStub        func(context.Context, string) error
-	waitMutex       sync.RWMutex
-	waitArgsForCall []struct {
-		arg1 context.Context
-		arg2 string
-	}
-	waitReturns struct {
-		result1 error
-	}
-	waitReturnsOnCall map[int]struct {
-		result1 error
+		result2 workspace.Workspace
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeJobRunner) Create(arg1 context.Context, arg2 string) error {
+func (fake *FakeJobRunner) Create(arg1 context.Context, arg2 string) (error, workspace.Workspace) {
 	fake.createMutex.Lock()
 	ret, specificReturn := fake.createReturnsOnCall[len(fake.createArgsForCall)]
 	fake.createArgsForCall = append(fake.createArgsForCall, struct {
@@ -136,9 +117,9 @@ func (fake *FakeJobRunner) Create(arg1 context.Context, arg2 string) error {
 		return stub(arg1, arg2)
 	}
 	if specificReturn {
-		return ret.result1
+		return ret.result1, ret.result2
 	}
-	return fakeReturns.result1
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *FakeJobRunner) CreateCallCount() int {
@@ -147,7 +128,7 @@ func (fake *FakeJobRunner) CreateCallCount() int {
 	return len(fake.createArgsForCall)
 }
 
-func (fake *FakeJobRunner) CreateCalls(stub func(context.Context, string) error) {
+func (fake *FakeJobRunner) CreateCalls(stub func(context.Context, string) (error, workspace.Workspace)) {
 	fake.createMutex.Lock()
 	defer fake.createMutex.Unlock()
 	fake.CreateStub = stub
@@ -160,30 +141,33 @@ func (fake *FakeJobRunner) CreateArgsForCall(i int) (context.Context, string) {
 	return argsForCall.arg1, argsForCall.arg2
 }
 
-func (fake *FakeJobRunner) CreateReturns(result1 error) {
+func (fake *FakeJobRunner) CreateReturns(result1 error, result2 workspace.Workspace) {
 	fake.createMutex.Lock()
 	defer fake.createMutex.Unlock()
 	fake.CreateStub = nil
 	fake.createReturns = struct {
 		result1 error
-	}{result1}
+		result2 workspace.Workspace
+	}{result1, result2}
 }
 
-func (fake *FakeJobRunner) CreateReturnsOnCall(i int, result1 error) {
+func (fake *FakeJobRunner) CreateReturnsOnCall(i int, result1 error, result2 workspace.Workspace) {
 	fake.createMutex.Lock()
 	defer fake.createMutex.Unlock()
 	fake.CreateStub = nil
 	if fake.createReturnsOnCall == nil {
 		fake.createReturnsOnCall = make(map[int]struct {
 			result1 error
+			result2 workspace.Workspace
 		})
 	}
 	fake.createReturnsOnCall[i] = struct {
 		result1 error
-	}{result1}
+		result2 workspace.Workspace
+	}{result1, result2}
 }
 
-func (fake *FakeJobRunner) Destroy(arg1 context.Context, arg2 string, arg3 map[string]interface{}) error {
+func (fake *FakeJobRunner) Destroy(arg1 context.Context, arg2 string, arg3 map[string]interface{}) (error, workspace.Workspace) {
 	fake.destroyMutex.Lock()
 	ret, specificReturn := fake.destroyReturnsOnCall[len(fake.destroyArgsForCall)]
 	fake.destroyArgsForCall = append(fake.destroyArgsForCall, struct {
@@ -199,9 +183,9 @@ func (fake *FakeJobRunner) Destroy(arg1 context.Context, arg2 string, arg3 map[s
 		return stub(arg1, arg2, arg3)
 	}
 	if specificReturn {
-		return ret.result1
+		return ret.result1, ret.result2
 	}
-	return fakeReturns.result1
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *FakeJobRunner) DestroyCallCount() int {
@@ -210,7 +194,7 @@ func (fake *FakeJobRunner) DestroyCallCount() int {
 	return len(fake.destroyArgsForCall)
 }
 
-func (fake *FakeJobRunner) DestroyCalls(stub func(context.Context, string, map[string]interface{}) error) {
+func (fake *FakeJobRunner) DestroyCalls(stub func(context.Context, string, map[string]interface{}) (error, workspace.Workspace)) {
 	fake.destroyMutex.Lock()
 	defer fake.destroyMutex.Unlock()
 	fake.DestroyStub = stub
@@ -223,30 +207,33 @@ func (fake *FakeJobRunner) DestroyArgsForCall(i int) (context.Context, string, m
 	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
-func (fake *FakeJobRunner) DestroyReturns(result1 error) {
+func (fake *FakeJobRunner) DestroyReturns(result1 error, result2 workspace.Workspace) {
 	fake.destroyMutex.Lock()
 	defer fake.destroyMutex.Unlock()
 	fake.DestroyStub = nil
 	fake.destroyReturns = struct {
 		result1 error
-	}{result1}
+		result2 workspace.Workspace
+	}{result1, result2}
 }
 
-func (fake *FakeJobRunner) DestroyReturnsOnCall(i int, result1 error) {
+func (fake *FakeJobRunner) DestroyReturnsOnCall(i int, result1 error, result2 workspace.Workspace) {
 	fake.destroyMutex.Lock()
 	defer fake.destroyMutex.Unlock()
 	fake.DestroyStub = nil
 	if fake.destroyReturnsOnCall == nil {
 		fake.destroyReturnsOnCall = make(map[int]struct {
 			result1 error
+			result2 workspace.Workspace
 		})
 	}
 	fake.destroyReturnsOnCall[i] = struct {
 		result1 error
-	}{result1}
+		result2 workspace.Workspace
+	}{result1, result2}
 }
 
-func (fake *FakeJobRunner) Import(arg1 context.Context, arg2 string, arg3 []tf.ImportResource) error {
+func (fake *FakeJobRunner) Import(arg1 context.Context, arg2 string, arg3 []tf.ImportResource) (error, workspace.Workspace) {
 	var arg3Copy []tf.ImportResource
 	if arg3 != nil {
 		arg3Copy = make([]tf.ImportResource, len(arg3))
@@ -267,9 +254,9 @@ func (fake *FakeJobRunner) Import(arg1 context.Context, arg2 string, arg3 []tf.I
 		return stub(arg1, arg2, arg3)
 	}
 	if specificReturn {
-		return ret.result1
+		return ret.result1, ret.result2
 	}
-	return fakeReturns.result1
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *FakeJobRunner) ImportCallCount() int {
@@ -278,7 +265,7 @@ func (fake *FakeJobRunner) ImportCallCount() int {
 	return len(fake.importArgsForCall)
 }
 
-func (fake *FakeJobRunner) ImportCalls(stub func(context.Context, string, []tf.ImportResource) error) {
+func (fake *FakeJobRunner) ImportCalls(stub func(context.Context, string, []tf.ImportResource) (error, workspace.Workspace)) {
 	fake.importMutex.Lock()
 	defer fake.importMutex.Unlock()
 	fake.ImportStub = stub
@@ -291,27 +278,30 @@ func (fake *FakeJobRunner) ImportArgsForCall(i int) (context.Context, string, []
 	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
-func (fake *FakeJobRunner) ImportReturns(result1 error) {
+func (fake *FakeJobRunner) ImportReturns(result1 error, result2 workspace.Workspace) {
 	fake.importMutex.Lock()
 	defer fake.importMutex.Unlock()
 	fake.ImportStub = nil
 	fake.importReturns = struct {
 		result1 error
-	}{result1}
+		result2 workspace.Workspace
+	}{result1, result2}
 }
 
-func (fake *FakeJobRunner) ImportReturnsOnCall(i int, result1 error) {
+func (fake *FakeJobRunner) ImportReturnsOnCall(i int, result1 error, result2 workspace.Workspace) {
 	fake.importMutex.Lock()
 	defer fake.importMutex.Unlock()
 	fake.ImportStub = nil
 	if fake.importReturnsOnCall == nil {
 		fake.importReturnsOnCall = make(map[int]struct {
 			result1 error
+			result2 workspace.Workspace
 		})
 	}
 	fake.importReturnsOnCall[i] = struct {
 		result1 error
-	}{result1}
+		result2 workspace.Workspace
+	}{result1, result2}
 }
 
 func (fake *FakeJobRunner) Outputs(arg1 context.Context, arg2 string, arg3 string) (map[string]interface{}, error) {
@@ -445,75 +435,7 @@ func (fake *FakeJobRunner) ShowReturnsOnCall(i int, result1 string, result2 erro
 	}{result1, result2}
 }
 
-func (fake *FakeJobRunner) Status(arg1 context.Context, arg2 string) (bool, string, error) {
-	fake.statusMutex.Lock()
-	ret, specificReturn := fake.statusReturnsOnCall[len(fake.statusArgsForCall)]
-	fake.statusArgsForCall = append(fake.statusArgsForCall, struct {
-		arg1 context.Context
-		arg2 string
-	}{arg1, arg2})
-	stub := fake.StatusStub
-	fakeReturns := fake.statusReturns
-	fake.recordInvocation("Status", []interface{}{arg1, arg2})
-	fake.statusMutex.Unlock()
-	if stub != nil {
-		return stub(arg1, arg2)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2, ret.result3
-	}
-	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
-}
-
-func (fake *FakeJobRunner) StatusCallCount() int {
-	fake.statusMutex.RLock()
-	defer fake.statusMutex.RUnlock()
-	return len(fake.statusArgsForCall)
-}
-
-func (fake *FakeJobRunner) StatusCalls(stub func(context.Context, string) (bool, string, error)) {
-	fake.statusMutex.Lock()
-	defer fake.statusMutex.Unlock()
-	fake.StatusStub = stub
-}
-
-func (fake *FakeJobRunner) StatusArgsForCall(i int) (context.Context, string) {
-	fake.statusMutex.RLock()
-	defer fake.statusMutex.RUnlock()
-	argsForCall := fake.statusArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
-}
-
-func (fake *FakeJobRunner) StatusReturns(result1 bool, result2 string, result3 error) {
-	fake.statusMutex.Lock()
-	defer fake.statusMutex.Unlock()
-	fake.StatusStub = nil
-	fake.statusReturns = struct {
-		result1 bool
-		result2 string
-		result3 error
-	}{result1, result2, result3}
-}
-
-func (fake *FakeJobRunner) StatusReturnsOnCall(i int, result1 bool, result2 string, result3 error) {
-	fake.statusMutex.Lock()
-	defer fake.statusMutex.Unlock()
-	fake.StatusStub = nil
-	if fake.statusReturnsOnCall == nil {
-		fake.statusReturnsOnCall = make(map[int]struct {
-			result1 bool
-			result2 string
-			result3 error
-		})
-	}
-	fake.statusReturnsOnCall[i] = struct {
-		result1 bool
-		result2 string
-		result3 error
-	}{result1, result2, result3}
-}
-
-func (fake *FakeJobRunner) Update(arg1 context.Context, arg2 string, arg3 map[string]interface{}) error {
+func (fake *FakeJobRunner) Update(arg1 context.Context, arg2 string, arg3 map[string]interface{}) (error, workspace.Workspace) {
 	fake.updateMutex.Lock()
 	ret, specificReturn := fake.updateReturnsOnCall[len(fake.updateArgsForCall)]
 	fake.updateArgsForCall = append(fake.updateArgsForCall, struct {
@@ -529,9 +451,9 @@ func (fake *FakeJobRunner) Update(arg1 context.Context, arg2 string, arg3 map[st
 		return stub(arg1, arg2, arg3)
 	}
 	if specificReturn {
-		return ret.result1
+		return ret.result1, ret.result2
 	}
-	return fakeReturns.result1
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *FakeJobRunner) UpdateCallCount() int {
@@ -540,7 +462,7 @@ func (fake *FakeJobRunner) UpdateCallCount() int {
 	return len(fake.updateArgsForCall)
 }
 
-func (fake *FakeJobRunner) UpdateCalls(stub func(context.Context, string, map[string]interface{}) error) {
+func (fake *FakeJobRunner) UpdateCalls(stub func(context.Context, string, map[string]interface{}) (error, workspace.Workspace)) {
 	fake.updateMutex.Lock()
 	defer fake.updateMutex.Unlock()
 	fake.UpdateStub = stub
@@ -553,89 +475,30 @@ func (fake *FakeJobRunner) UpdateArgsForCall(i int) (context.Context, string, ma
 	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
-func (fake *FakeJobRunner) UpdateReturns(result1 error) {
+func (fake *FakeJobRunner) UpdateReturns(result1 error, result2 workspace.Workspace) {
 	fake.updateMutex.Lock()
 	defer fake.updateMutex.Unlock()
 	fake.UpdateStub = nil
 	fake.updateReturns = struct {
 		result1 error
-	}{result1}
+		result2 workspace.Workspace
+	}{result1, result2}
 }
 
-func (fake *FakeJobRunner) UpdateReturnsOnCall(i int, result1 error) {
+func (fake *FakeJobRunner) UpdateReturnsOnCall(i int, result1 error, result2 workspace.Workspace) {
 	fake.updateMutex.Lock()
 	defer fake.updateMutex.Unlock()
 	fake.UpdateStub = nil
 	if fake.updateReturnsOnCall == nil {
 		fake.updateReturnsOnCall = make(map[int]struct {
 			result1 error
+			result2 workspace.Workspace
 		})
 	}
 	fake.updateReturnsOnCall[i] = struct {
 		result1 error
-	}{result1}
-}
-
-func (fake *FakeJobRunner) Wait(arg1 context.Context, arg2 string) error {
-	fake.waitMutex.Lock()
-	ret, specificReturn := fake.waitReturnsOnCall[len(fake.waitArgsForCall)]
-	fake.waitArgsForCall = append(fake.waitArgsForCall, struct {
-		arg1 context.Context
-		arg2 string
-	}{arg1, arg2})
-	stub := fake.WaitStub
-	fakeReturns := fake.waitReturns
-	fake.recordInvocation("Wait", []interface{}{arg1, arg2})
-	fake.waitMutex.Unlock()
-	if stub != nil {
-		return stub(arg1, arg2)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fakeReturns.result1
-}
-
-func (fake *FakeJobRunner) WaitCallCount() int {
-	fake.waitMutex.RLock()
-	defer fake.waitMutex.RUnlock()
-	return len(fake.waitArgsForCall)
-}
-
-func (fake *FakeJobRunner) WaitCalls(stub func(context.Context, string) error) {
-	fake.waitMutex.Lock()
-	defer fake.waitMutex.Unlock()
-	fake.WaitStub = stub
-}
-
-func (fake *FakeJobRunner) WaitArgsForCall(i int) (context.Context, string) {
-	fake.waitMutex.RLock()
-	defer fake.waitMutex.RUnlock()
-	argsForCall := fake.waitArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
-}
-
-func (fake *FakeJobRunner) WaitReturns(result1 error) {
-	fake.waitMutex.Lock()
-	defer fake.waitMutex.Unlock()
-	fake.WaitStub = nil
-	fake.waitReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeJobRunner) WaitReturnsOnCall(i int, result1 error) {
-	fake.waitMutex.Lock()
-	defer fake.waitMutex.Unlock()
-	fake.WaitStub = nil
-	if fake.waitReturnsOnCall == nil {
-		fake.waitReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.waitReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
+		result2 workspace.Workspace
+	}{result1, result2}
 }
 
 func (fake *FakeJobRunner) Invocations() map[string][][]interface{} {
@@ -651,12 +514,8 @@ func (fake *FakeJobRunner) Invocations() map[string][][]interface{} {
 	defer fake.outputsMutex.RUnlock()
 	fake.showMutex.RLock()
 	defer fake.showMutex.RUnlock()
-	fake.statusMutex.RLock()
-	defer fake.statusMutex.RUnlock()
 	fake.updateMutex.RLock()
 	defer fake.updateMutex.RUnlock()
-	fake.waitMutex.RLock()
-	defer fake.waitMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

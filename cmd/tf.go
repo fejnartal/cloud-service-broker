@@ -23,9 +23,6 @@ import (
 	"time"
 
 	"github.com/cloudfoundry/cloud-service-broker/dbservice"
-	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/executor"
-
-	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/invoker"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/providers/tf/workspace"
 
 	"github.com/cloudfoundry/cloud-service-broker/internal/storage"
@@ -38,8 +35,8 @@ import (
 )
 
 func init() {
-	var jobRunner *tf.TfJobRunner
 	var db *gorm.DB
+	var lastOperationStore tf.LastOperationStore
 
 	tfCmd := &cobra.Command{
 		Use:   "tf",
@@ -50,7 +47,7 @@ func init() {
 			db = dbservice.New(logger)
 			encryptor := setupDBEncryption(db, logger)
 			store := storage.New(db, encryptor)
-			jobRunner = tf.NewTfJobRunner(store, executor.TFBinariesContext{}, workspace.NewWorkspaceFactory(), invoker.NewTerraformInvokerFactory(executor.NewExecutorFactory("", nil, nil), "", map[string]string{}))
+			lastOperationStore = tf.NewLastOperationStore(store)
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
@@ -96,7 +93,7 @@ func init() {
 		Use:   "wait",
 		Short: "wait for a Terraform job",
 		Run: func(cmd *cobra.Command, args []string) {
-			err := jobRunner.Wait(context.Background(), args[0])
+			err := lastOperationStore.Wait(context.Background(), args[0])
 			if err != nil {
 				log.Fatal(err)
 			}

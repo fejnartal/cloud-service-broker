@@ -35,6 +35,7 @@ var _ = Describe("Provider", func() {
 						},
 					},
 					storage,
+					nil,
 				)
 
 				inputVariables := []broker.BrokerVariable{
@@ -78,6 +79,7 @@ var _ = Describe("Provider", func() {
 						},
 					},
 					new(brokerfakes.FakeServiceProviderStorage),
+					nil,
 				)
 			})
 

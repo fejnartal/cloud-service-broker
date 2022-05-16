@@ -34,31 +34,41 @@ import (
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
 //counterfeiter:generate . JobRunner
 type JobRunner interface {
-	Import(ctx context.Context, id string, importResources []ImportResource) error
-	Create(ctx context.Context, id string) error
-	Update(ctx context.Context, id string, templateVars map[string]interface{}) error
-	Destroy(ctx context.Context, id string, templateVars map[string]interface{}) error
-	Status(ctx context.Context, id string) (bool, string, error)
+	Import(ctx context.Context, id string, importResources []ImportResource) (error, workspace.Workspace)
+	Create(ctx context.Context, id string) (error, workspace.Workspace)
+	Update(ctx context.Context, id string, templateVars map[string]interface{}) (error, workspace.Workspace)
 	Outputs(ctx context.Context, id, instanceName string) (map[string]interface{}, error)
-	Wait(ctx context.Context, id string) error
+	Destroy(ctx context.Context, id string, templateVars map[string]interface{}) (error, workspace.Workspace)
 	Show(ctx context.Context, id string) (string, error)
 }
 
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
+//counterfeiter:generate . LastOperationStore
+type LastOperationStore interface {
+	Status(ctx context.Context, id string) (bool, string, error)
+	Wait(ctx context.Context, id string) error
+	MarkJobStarted(deployment storage.TerraformDeployment, operationType string) error
+	MarkJobStartedNew(id string, operationType string) error
+	OperationFinished(err error, workspace workspace.Workspace, deployment storage.TerraformDeployment) error
+}
+
 // NewTerraformProvider creates a new ServiceProvider backed by Terraform module definitions for provision and bind.
-func NewTerraformProvider(jobRunner JobRunner, logger lager.Logger, serviceDefinition TfServiceDefinitionV1, store broker.ServiceProviderStorage) broker.ServiceProvider {
+func NewTerraformProvider(jobRunner JobRunner, logger lager.Logger, serviceDefinition TfServiceDefinitionV1, store broker.ServiceProviderStorage, lastOperationStore LastOperationStore) broker.ServiceProvider {
 	return &terraformProvider{
-		serviceDefinition: serviceDefinition,
-		jobRunner:         jobRunner,
-		logger:            logger.Session("terraform-" + serviceDefinition.Name),
-		store:             store,
+		serviceDefinition:  serviceDefinition,
+		jobRunner:          jobRunner,
+		logger:             logger.Session("terraform-" + serviceDefinition.Name),
+		store:              store,
+		lastOperationStore: lastOperationStore,
 	}
 }
 
 type terraformProvider struct {
-	logger            lager.Logger
-	jobRunner         JobRunner
-	serviceDefinition TfServiceDefinitionV1
-	store             broker.ServiceProviderStorage
+	logger             lager.Logger
+	jobRunner          JobRunner
+	serviceDefinition  TfServiceDefinitionV1
+	store              broker.ServiceProviderStorage
+	lastOperationStore LastOperationStore
 }
 
 // BuildInstanceCredentials combines the bind credentials with the connection
@@ -122,12 +132,25 @@ func (provider *terraformProvider) Update(ctx context.Context, provisionContext 
 		return models.ServiceInstanceDetails{}, err
 	}
 
-	err := provider.jobRunner.Update(ctx, tfID, provisionContext.ToMap())
+	deployment, err := provider.store.GetTerraformDeployment(tfID)
+	if err != nil {
+		return models.ServiceInstanceDetails{}, err
+	}
+
+	if err := provider.lastOperationStore.MarkJobStarted(deployment, models.UpdateOperationType); err != nil {
+		return models.ServiceInstanceDetails{}, err
+	}
+
+	go func() {
+		err, updatedWorkspace := provider.jobRunner.Update(ctx, tfID, provisionContext.ToMap())
+		provider.lastOperationStore.OperationFinished(err, updatedWorkspace, deployment)
+
+	}()
 
 	return models.ServiceInstanceDetails{
 		OperationID:   tfID,
 		OperationType: models.UpdateOperationType,
-	}, err
+	}, nil
 }
 
 // Bind creates a new backing Terraform job and executes it, waiting on the result.
@@ -141,7 +164,7 @@ func (provider *terraformProvider) Bind(ctx context.Context, bindContext *varcon
 		return nil, fmt.Errorf("error from provider bind: %w", err)
 	}
 
-	if err := provider.jobRunner.Wait(ctx, tfID); err != nil {
+	if err := provider.lastOperationStore.Wait(ctx, tfID); err != nil {
 		return nil, fmt.Errorf("error from job runner: %w", err)
 	}
 
@@ -194,12 +217,22 @@ func (provider *terraformProvider) importCreate(ctx context.Context, vars *varco
 		return tfID, err
 	}
 
-	if err := provider.storeDeployment(tfID, workspace); err != nil {
+	err, deployment := provider.storeDeployment(tfID, workspace)
+	if err != nil {
 		provider.logger.Error("terraform provider create failed", err)
 		return tfID, err
 	}
 
-	return tfID, provider.jobRunner.Import(ctx, tfID, importParams)
+	if err := provider.lastOperationStore.MarkJobStarted(deployment, models.ProvisionOperationType); err != nil {
+		return tfID, err
+	}
+
+	go func() {
+		err, updatedWorkspace := provider.jobRunner.Import(ctx, tfID, importParams)
+		provider.lastOperationStore.OperationFinished(err, updatedWorkspace, deployment)
+	}()
+
+	return tfID, nil
 }
 
 func (provider *terraformProvider) create(ctx context.Context, vars *varcontext.VarContext, action TfServiceDefinitionV1Action) (string, error) {
@@ -217,38 +250,50 @@ func (provider *terraformProvider) create(ctx context.Context, vars *varcontext.
 	// 	return tfID, err
 	// }
 
-	if err := provider.storeDeployment(tfID, workspace); err != nil {
+	err, deployment := provider.storeDeployment(tfID, workspace)
+	if err != nil {
 		provider.logger.Error("terraform provider create failed", err)
 		return tfID, fmt.Errorf("terraform provider create failed: %w", err)
 	}
 
-	return tfID, provider.jobRunner.Create(ctx, tfID)
+	if err := provider.lastOperationStore.MarkJobStarted(deployment, models.ProvisionOperationType); err != nil {
+		return tfID, fmt.Errorf("error marking job started: %w", err)
+	}
+
+	go func() {
+		// I can actually pass the deployment or workspace here (probably workspace better)ß
+		err, updatedWorkspace := provider.jobRunner.Create(ctx, tfID) // mutates the workspace. Can either return it or update it in the db
+		provider.lastOperationStore.OperationFinished(err, updatedWorkspace, deployment)
+	}()
+
+	return tfID, nil
 }
 
 // storeDeployment stages a job to be executed. Before the workspace is saved to the
 // database, the modules and inputs are validated by Terraform.
-func (provider *terraformProvider) storeDeployment(jobID string, workspace *workspace.TerraformWorkspace) error {
+func (provider *terraformProvider) storeDeployment(jobID string, workspace *workspace.TerraformWorkspace) (error, storage.TerraformDeployment) {
 	deployment := storage.TerraformDeployment{ID: jobID}
 	exists, err := provider.store.ExistsTerraformDeployment(jobID)
+	// TODO: not sure we need to check for existence as this is only called on create
 	switch {
 	case err != nil:
-		return err
+		return err, storage.TerraformDeployment{}
 	case exists:
 		deployment, err = provider.store.GetTerraformDeployment(jobID)
 		if err != nil {
-			return err
+			return err, storage.TerraformDeployment{}
 		}
 	}
 
 	workspaceString, err := workspace.Serialize()
 	if err != nil {
-		return err
+		return err, storage.TerraformDeployment{}
 	}
 
 	deployment.Workspace = []byte(workspaceString)
 	deployment.LastOperationType = "validation"
 
-	return provider.store.StoreTerraformDeployment(deployment)
+	return provider.store.StoreTerraformDeployment(deployment), deployment
 }
 
 // Unbind performs a terraform destroy on the binding.
@@ -264,11 +309,22 @@ func (provider *terraformProvider) Unbind(ctx context.Context, instanceGUID, bin
 		return err
 	}
 
-	if err := provider.jobRunner.Destroy(ctx, tfID, vc.ToMap()); err != nil {
+	deployment, err := provider.store.GetTerraformDeployment(tfID)
+	if err != nil {
 		return err
 	}
 
-	return provider.jobRunner.Wait(ctx, tfID)
+	if err := provider.lastOperationStore.MarkJobStarted(deployment, models.DeprovisionOperationType); err != nil {
+		return err
+	}
+
+	go func() { // we can actually avoid this goroutine here
+		// I can actually pass the deployment or workspace here (probably workspace better)ß
+		err, updatedWorkspace := provider.jobRunner.Destroy(ctx, tfID, vc.ToMap())
+		provider.lastOperationStore.OperationFinished(err, updatedWorkspace, deployment)
+	}()
+
+	return provider.lastOperationStore.Wait(ctx, tfID)
 }
 
 // Deprovision performs a terraform destroy on the instance.
@@ -283,16 +339,26 @@ func (provider *terraformProvider) Deprovision(ctx context.Context, instanceGUID
 		return nil, err
 	}
 
-	if err := provider.jobRunner.Destroy(ctx, tfID, vc.ToMap()); err != nil {
+	deployment, err := provider.store.GetTerraformDeployment(tfID)
+	if err != nil {
 		return nil, err
 	}
+
+	if err := provider.lastOperationStore.MarkJobStarted(deployment, models.DeprovisionOperationType); err != nil {
+		return &tfID, fmt.Errorf("error marking job started: %w", err)
+	}
+
+	go func() {
+		err, updatedWorkspace := provider.jobRunner.Destroy(ctx, tfID, vc.ToMap())
+		provider.lastOperationStore.OperationFinished(err, updatedWorkspace, deployment)
+	}()
 
 	return &tfID, nil
 }
 
 // PollInstance returns the instance status of the backing job.
 func (provider *terraformProvider) PollInstance(ctx context.Context, instanceGUID string) (bool, string, error) {
-	return provider.jobRunner.Status(ctx, generateTfID(instanceGUID, ""))
+	return provider.lastOperationStore.Status(ctx, generateTfID(instanceGUID, ""))
 }
 
 // UpdateInstanceDetails updates the ServiceInstanceDetails with the most recent state from GCP.
