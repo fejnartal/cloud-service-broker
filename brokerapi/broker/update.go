@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/cloudfoundry/cloud-service-broker/brokerapi/broker/decider"
+
 	"code.cloudfoundry.org/lager"
 	"github.com/cloudfoundry/cloud-service-broker/internal/paramparser"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/varcontext"
@@ -43,6 +45,13 @@ func (broker *ServiceBroker) Update(ctx context.Context, instanceID string, deta
 	brokerService, serviceHelper, err := broker.getDefinitionAndProvider(instance.ServiceGUID)
 	if err != nil {
 		return response, err
+	}
+
+	// Decide here?
+
+	operation, err := decider.DecideOperation(brokerService, details)
+	if operation == decider.Upgrade {
+		return domain.UpdateServiceSpec{}, broker.upgrade(ctx, instanceID, details, asyncAllowed)
 	}
 
 	parsedDetails, err := paramparser.ParseUpdateDetails(details)

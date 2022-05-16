@@ -244,12 +244,6 @@ func (runner *TfJobRunner) Update(ctx context.Context, id string, templateVars m
 	}
 
 	go func() {
-		err = runner.performTerraformUpgrade(ctx, workspace)
-		if err != nil {
-			runner.operationFinished(err, workspace, deployment)
-			return
-		}
-
 		err = workspace.UpdateInstanceConfiguration(templateVars)
 		if err != nil {
 			runner.operationFinished(err, workspace, deployment)
@@ -257,6 +251,33 @@ func (runner *TfJobRunner) Update(ctx context.Context, id string, templateVars m
 		}
 
 		err = runner.DefaultInvoker().Apply(ctx, workspace)
+		runner.operationFinished(err, workspace, deployment)
+	}()
+
+	return nil
+}
+
+func (runner *TfJobRunner) Upgrade(ctx context.Context, id string) error {
+	deployment, err := runner.store.GetTerraformDeployment(id)
+	if err != nil {
+		return err
+	}
+
+	workspace, err := runner.CreateWorkspace(deployment)
+	if err != nil {
+		return err
+	}
+
+	if err := runner.markJobStarted(deployment, models.UpdateOperationType); err != nil {
+		return err
+	}
+
+	go func() {
+		err = runner.performTerraformUpgrade(ctx, workspace)
+		if err != nil {
+			runner.operationFinished(err, workspace, deployment)
+			return
+		}
 		runner.operationFinished(err, workspace, deployment)
 	}()
 

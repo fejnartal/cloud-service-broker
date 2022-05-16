@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/cloudfoundry/cloud-service-broker/brokerapi/broker"
+	"github.com/cloudfoundry/cloud-service-broker/db_service/models"
 	"github.com/cloudfoundry/cloud-service-broker/internal/storage"
 )
 
@@ -145,6 +146,19 @@ type FakeStorage struct {
 	}
 	getServiceBindingCredentialsReturnsOnCall map[int]struct {
 		result1 storage.ServiceBindingCredentials
+		result2 error
+	}
+	GetServiceBindingIDsStub        func(string) ([]models.ServiceBindingCredentials, error)
+	getServiceBindingIDsMutex       sync.RWMutex
+	getServiceBindingIDsArgsForCall []struct {
+		arg1 string
+	}
+	getServiceBindingIDsReturns struct {
+		result1 []models.ServiceBindingCredentials
+		result2 error
+	}
+	getServiceBindingIDsReturnsOnCall map[int]struct {
+		result1 []models.ServiceBindingCredentials
 		result2 error
 	}
 	GetServiceInstanceDetailsStub        func(string) (storage.ServiceInstanceDetails, error)
@@ -916,6 +930,70 @@ func (fake *FakeStorage) GetServiceBindingCredentialsReturnsOnCall(i int, result
 	}{result1, result2}
 }
 
+func (fake *FakeStorage) GetServiceBindingIDs(arg1 string) ([]models.ServiceBindingCredentials, error) {
+	fake.getServiceBindingIDsMutex.Lock()
+	ret, specificReturn := fake.getServiceBindingIDsReturnsOnCall[len(fake.getServiceBindingIDsArgsForCall)]
+	fake.getServiceBindingIDsArgsForCall = append(fake.getServiceBindingIDsArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.GetServiceBindingIDsStub
+	fakeReturns := fake.getServiceBindingIDsReturns
+	fake.recordInvocation("GetServiceBindingIDs", []interface{}{arg1})
+	fake.getServiceBindingIDsMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeStorage) GetServiceBindingIDsCallCount() int {
+	fake.getServiceBindingIDsMutex.RLock()
+	defer fake.getServiceBindingIDsMutex.RUnlock()
+	return len(fake.getServiceBindingIDsArgsForCall)
+}
+
+func (fake *FakeStorage) GetServiceBindingIDsCalls(stub func(string) ([]models.ServiceBindingCredentials, error)) {
+	fake.getServiceBindingIDsMutex.Lock()
+	defer fake.getServiceBindingIDsMutex.Unlock()
+	fake.GetServiceBindingIDsStub = stub
+}
+
+func (fake *FakeStorage) GetServiceBindingIDsArgsForCall(i int) string {
+	fake.getServiceBindingIDsMutex.RLock()
+	defer fake.getServiceBindingIDsMutex.RUnlock()
+	argsForCall := fake.getServiceBindingIDsArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeStorage) GetServiceBindingIDsReturns(result1 []models.ServiceBindingCredentials, result2 error) {
+	fake.getServiceBindingIDsMutex.Lock()
+	defer fake.getServiceBindingIDsMutex.Unlock()
+	fake.GetServiceBindingIDsStub = nil
+	fake.getServiceBindingIDsReturns = struct {
+		result1 []models.ServiceBindingCredentials
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeStorage) GetServiceBindingIDsReturnsOnCall(i int, result1 []models.ServiceBindingCredentials, result2 error) {
+	fake.getServiceBindingIDsMutex.Lock()
+	defer fake.getServiceBindingIDsMutex.Unlock()
+	fake.GetServiceBindingIDsStub = nil
+	if fake.getServiceBindingIDsReturnsOnCall == nil {
+		fake.getServiceBindingIDsReturnsOnCall = make(map[int]struct {
+			result1 []models.ServiceBindingCredentials
+			result2 error
+		})
+	}
+	fake.getServiceBindingIDsReturnsOnCall[i] = struct {
+		result1 []models.ServiceBindingCredentials
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeStorage) GetServiceInstanceDetails(arg1 string) (storage.ServiceInstanceDetails, error) {
 	fake.getServiceInstanceDetailsMutex.Lock()
 	ret, specificReturn := fake.getServiceInstanceDetailsReturnsOnCall[len(fake.getServiceInstanceDetailsArgsForCall)]
@@ -1314,6 +1392,8 @@ func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	defer fake.getProvisionRequestDetailsMutex.RUnlock()
 	fake.getServiceBindingCredentialsMutex.RLock()
 	defer fake.getServiceBindingCredentialsMutex.RUnlock()
+	fake.getServiceBindingIDsMutex.RLock()
+	defer fake.getServiceBindingIDsMutex.RUnlock()
 	fake.getServiceInstanceDetailsMutex.RLock()
 	defer fake.getServiceInstanceDetailsMutex.RUnlock()
 	fake.getTerraformDeploymentMutex.RLock()

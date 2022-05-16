@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"github.com/cloudfoundry/cloud-service-broker/db_service/models"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/broker"
 
 	"github.com/cloudfoundry/cloud-service-broker/internal/storage"
@@ -26,4 +27,6 @@ type Storage interface {
 	GetServiceInstanceDetails(guid string) (storage.ServiceInstanceDetails, error)
 	ExistsServiceInstanceDetails(guid string) (bool, error)
 	DeleteServiceInstanceDetails(guid string) error
+
+	GetServiceBindingIDs(serviceInstanceID string) ([]models.ServiceBindingCredentials, error)
 }

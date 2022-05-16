@@ -58,6 +58,8 @@ type ServiceProvider interface {
 	ProvisionsAsync() bool
 	DeprovisionsAsync() bool
 
+	Upgrade(ctx context.Context, tfID string, vc *varcontext.VarContext) error
+
 	// UpdateInstanceDetails updates the ServiceInstanceDetails with the most recent state from GCP.
 	// This function is optional, but will be called after async provisions, updates, and possibly
 	// on broker version changes.

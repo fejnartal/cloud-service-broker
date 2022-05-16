@@ -109,9 +109,23 @@ func (client *Client) Update(instanceID, serviceID, planID, requestID string, pa
 	url := fmt.Sprintf("service_instances/%s?accepts_incomplete=true", instanceID)
 
 	return client.makeRequest(http.MethodPatch, url, requestID, domain.UpdateDetails{
-		ServiceID:     serviceID,
-		PlanID:        planID,
-		RawParameters: parameters,
+		ServiceID:       serviceID,
+		PlanID:          planID,
+		RawParameters:   parameters,
+		MaintenanceInfo: &domain.MaintenanceInfo{Version: "1"},
+	})
+}
+
+// Upgrade sends a patch request to change the plan
+func (client *Client) Upgrade(instanceID, serviceID, planID, requestID string, parameters json.RawMessage, mi *domain.MaintenanceInfo, previousValues domain.PreviousValues) *BrokerResponse {
+	url := fmt.Sprintf("service_instances/%s?accepts_incomplete=true", instanceID)
+
+	return client.makeRequest(http.MethodPatch, url, requestID, domain.UpdateDetails{
+		ServiceID:       serviceID,
+		PlanID:          planID,
+		RawParameters:   parameters,
+		MaintenanceInfo: mi,
+		PreviousValues:  previousValues,
 	})
 }
 

@@ -44,6 +44,7 @@ type JobRunner interface {
 	Outputs(ctx context.Context, id, instanceName string) (map[string]interface{}, error)
 	Wait(ctx context.Context, id string) error
 	Show(ctx context.Context, id string) (string, error)
+	Upgrade(ctx context.Context, id string) error
 }
 
 // NewTerraformProvider creates a new ServiceProvider backed by Terraform module definitions for provision and bind.
@@ -229,6 +230,22 @@ func (provider *terraformProvider) Unbind(ctx context.Context, instanceGUID, bin
 	}
 
 	if err := provider.jobRunner.Destroy(ctx, tfID, vc.ToMap()); err != nil {
+		return err
+	}
+
+	return provider.jobRunner.Wait(ctx, tfID)
+}
+
+func (provider *terraformProvider) Upgrade(ctx context.Context, tfID string, vc *varcontext.VarContext) error {
+	provider.logger.Debug("terraform-upgrade", correlation.ID(ctx), lager.Data{
+		"tfId": tfID,
+	})
+
+	if err := UpdateWorkspaceHCL(provider.store, provider.serviceDefinition.BindSettings, vc, tfID); err != nil {
+		return err
+	}
+
+	if err := provider.jobRunner.Upgrade(ctx, tfID); err != nil {
 		return err
 	}
 

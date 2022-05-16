@@ -23,7 +23,7 @@ import (
 	"github.com/cloudfoundry/cloud-service-broker/brokerapi/broker"
 )
 
-var _ = Describe("Update", func() {
+var _ = FDescribe("Update", func() {
 	const (
 		spaceID           = "test-space-id"
 		orgID             = "test-org-id"
@@ -49,6 +49,21 @@ var _ = Describe("Update", func() {
 		providerBuilder := func(logger lager.Logger, store pkgBroker.ServiceProviderStorage) pkgBroker.ServiceProvider {
 			return fakeServiceProvider
 		}
+
+		maintenanceInfoDefault := &domain.MaintenanceInfo{
+			Public:      nil,
+			Private:     "",
+			Version:     "0.1.0",
+			Description: "test maintenance info",
+		}
+
+		maintenanceInfoHigher := &domain.MaintenanceInfo{
+			Public:      nil,
+			Private:     "",
+			Version:     "0.2.0",
+			Description: "test maintenance info",
+		}
+
 		planUpdatable := true
 		brokerConfig := &broker.BrokerConfig{
 			Registry: pkgBroker.BrokerRegistry{
@@ -58,9 +73,10 @@ var _ = Describe("Update", func() {
 					Plans: []pkgBroker.ServicePlan{
 						{
 							ServicePlan: domain.ServicePlan{
-								ID:            originalPlanID,
-								Name:          "test-plan",
-								PlanUpdatable: &planUpdatable,
+								ID:              originalPlanID,
+								Name:            "test-plan",
+								PlanUpdatable:   &planUpdatable,
+								MaintenanceInfo: maintenanceInfoHigher,
 							},
 							ServiceProperties: map[string]interface{}{
 								"plan-defined-key":       "plan-defined-value",
@@ -131,12 +147,14 @@ var _ = Describe("Update", func() {
 			ServiceID: offeringID,
 			PlanID:    originalPlanID,
 			PreviousValues: domain.PreviousValues{
-				PlanID:    originalPlanID,
-				ServiceID: offeringID,
-				OrgID:     orgID,
-				SpaceID:   spaceID,
+				PlanID:          originalPlanID,
+				ServiceID:       offeringID,
+				OrgID:           orgID,
+				SpaceID:         spaceID,
+				MaintenanceInfo: maintenanceInfoDefault,
 			},
-			RawContext: json.RawMessage(fmt.Sprintf(`{"organization_guid":%q, "space_guid": %q}`, orgID, spaceID)),
+			RawContext:      json.RawMessage(fmt.Sprintf(`{"organization_guid":%q, "space_guid": %q}`, orgID, spaceID)),
+			MaintenanceInfo: maintenanceInfoHigher,
 		}
 	})
 
@@ -265,6 +283,26 @@ var _ = Describe("Update", func() {
 				Expect(actualRequestVars).To(Equal(storage.JSONObject{"foo": "quz", "guz": "muz"}))
 			})
 		})
+	})
+
+	FDescribe("successful upgrade", func() {
+		When("no plan or parameter changes are requested", func() {
+			//BeforeEach(func() {
+			//	updateDetails.MaintenanceInfo = &domain.MaintenanceInfo{
+			//		Public:      nil,
+			//		Private:     "",
+			//		Version:     "0.0.0",
+			//		Description: "test maintenance info",
+			//	}
+			//})
+
+			It("should panic if upgrade requested", func() {
+				_, err := serviceBroker.Update(context.TODO(), instanceID, updateDetails, true)
+				Expect(err).To(HaveOccurred())
+
+			})
+		})
+
 	})
 
 	Describe("update variables", func() {

@@ -300,15 +300,16 @@ func (tfb *TfServiceDefinitionV1) ToService(tfBinContext executor.TFBinariesCont
 // TfServiceDefinitionV1Plan represents a service plan in a human-friendly format
 // that can be converted into an OSB compatible plan.
 type TfServiceDefinitionV1Plan struct {
-	Name               string                 `yaml:"name"`
-	ID                 string                 `yaml:"id"`
-	Description        string                 `yaml:"description"`
-	DisplayName        string                 `yaml:"display_name"`
-	Bullets            []string               `yaml:"bullets,omitempty"`
-	Free               bool                   `yaml:"free,omitempty"`
-	Properties         map[string]interface{} `yaml:"properties"`
-	ProvisionOverrides map[string]interface{} `yaml:"provision_overrides,omitempty"`
-	BindOverrides      map[string]interface{} `yaml:"bind_overrides,omitempty"`
+	Name               string                  `yaml:"name"`
+	ID                 string                  `yaml:"id"`
+	Description        string                  `yaml:"description"`
+	DisplayName        string                  `yaml:"display_name"`
+	Bullets            []string                `yaml:"bullets,omitempty"`
+	Free               bool                    `yaml:"free,omitempty"`
+	Properties         map[string]interface{}  `yaml:"properties"`
+	ProvisionOverrides map[string]interface{}  `yaml:"provision_overrides,omitempty"`
+	BindOverrides      map[string]interface{}  `yaml:"bind_overrides,omitempty"`
+	MaintenanceInfo    *domain.MaintenanceInfo `yaml:"maintenance_info,omitempty"`
 }
 
 var _ validation.Validatable = (*TfServiceDefinitionV1Plan)(nil)
@@ -334,6 +335,7 @@ func (plan *TfServiceDefinitionV1Plan) ToPlan() broker.ServicePlan {
 			Bullets:     plan.Bullets,
 			DisplayName: plan.DisplayName,
 		},
+		MaintenanceInfo: plan.MaintenanceInfo,
 	}
 
 	return broker.ServicePlan{

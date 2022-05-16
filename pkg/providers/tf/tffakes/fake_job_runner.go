@@ -118,6 +118,18 @@ type FakeJobRunner struct {
 	updateReturnsOnCall map[int]struct {
 		result1 error
 	}
+	UpgradeStub        func(context.Context, string) error
+	upgradeMutex       sync.RWMutex
+	upgradeArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+	}
+	upgradeReturns struct {
+		result1 error
+	}
+	upgradeReturnsOnCall map[int]struct {
+		result1 error
+	}
 	WaitStub        func(context.Context, string) error
 	waitMutex       sync.RWMutex
 	waitArgsForCall []struct {
@@ -651,6 +663,68 @@ func (fake *FakeJobRunner) UpdateReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
+func (fake *FakeJobRunner) Upgrade(arg1 context.Context, arg2 string) error {
+	fake.upgradeMutex.Lock()
+	ret, specificReturn := fake.upgradeReturnsOnCall[len(fake.upgradeArgsForCall)]
+	fake.upgradeArgsForCall = append(fake.upgradeArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+	}{arg1, arg2})
+	stub := fake.UpgradeStub
+	fakeReturns := fake.upgradeReturns
+	fake.recordInvocation("Upgrade", []interface{}{arg1, arg2})
+	fake.upgradeMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeJobRunner) UpgradeCallCount() int {
+	fake.upgradeMutex.RLock()
+	defer fake.upgradeMutex.RUnlock()
+	return len(fake.upgradeArgsForCall)
+}
+
+func (fake *FakeJobRunner) UpgradeCalls(stub func(context.Context, string) error) {
+	fake.upgradeMutex.Lock()
+	defer fake.upgradeMutex.Unlock()
+	fake.UpgradeStub = stub
+}
+
+func (fake *FakeJobRunner) UpgradeArgsForCall(i int) (context.Context, string) {
+	fake.upgradeMutex.RLock()
+	defer fake.upgradeMutex.RUnlock()
+	argsForCall := fake.upgradeArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeJobRunner) UpgradeReturns(result1 error) {
+	fake.upgradeMutex.Lock()
+	defer fake.upgradeMutex.Unlock()
+	fake.UpgradeStub = nil
+	fake.upgradeReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeJobRunner) UpgradeReturnsOnCall(i int, result1 error) {
+	fake.upgradeMutex.Lock()
+	defer fake.upgradeMutex.Unlock()
+	fake.UpgradeStub = nil
+	if fake.upgradeReturnsOnCall == nil {
+		fake.upgradeReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.upgradeReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeJobRunner) Wait(arg1 context.Context, arg2 string) error {
 	fake.waitMutex.Lock()
 	ret, specificReturn := fake.waitReturnsOnCall[len(fake.waitArgsForCall)]
@@ -732,6 +806,8 @@ func (fake *FakeJobRunner) Invocations() map[string][][]interface{} {
 	defer fake.statusMutex.RUnlock()
 	fake.updateMutex.RLock()
 	defer fake.updateMutex.RUnlock()
+	fake.upgradeMutex.RLock()
+	defer fake.upgradeMutex.RUnlock()
 	fake.waitMutex.RLock()
 	defer fake.waitMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
