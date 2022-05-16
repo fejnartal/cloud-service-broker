@@ -51,6 +51,16 @@ func (broker *ServiceBroker) Bind(ctx context.Context, instanceID, bindingID str
 		return domain.Binding{}, fmt.Errorf("error retrieving service definition: %w", err)
 	}
 
+	// check if upgrade available
+	upgradeAvailable, err := serviceProvider.UpgradeAvailable("tf:" + instanceID + ":")
+	if err != nil {
+		return domain.Binding{}, fmt.Errorf("error getting instance tf version: %w", err)
+	}
+
+	if upgradeAvailable {
+		return domain.Binding{}, fmt.Errorf("an upgrade is available for this instance. Please upgrade before attempting to create binding: %w", err)
+	}
+
 	parsedDetails, err := paramparser.ParseBindDetails(details)
 	if err != nil {
 		return domain.Binding{}, ErrInvalidUserInput

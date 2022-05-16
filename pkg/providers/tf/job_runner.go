@@ -284,6 +284,25 @@ func (runner *TfJobRunner) Upgrade(ctx context.Context, id string) error {
 	return nil
 }
 
+func (runner *TfJobRunner) UpgradeAvailable(id string) (bool, error) {
+	deployment, err := runner.store.GetTerraformDeployment(id)
+	if err != nil {
+		return false, err
+	}
+
+	workspace, err := runner.CreateWorkspace(deployment)
+	if err != nil {
+		return false, err
+	}
+
+	currentTfVersion, err := workspace.StateVersion()
+	if currentTfVersion.LessThan(runner.tfBinContext.DefaultTfVersion) {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 func (runner *TfJobRunner) performTerraformUpgrade(ctx context.Context, workspace workspace.Workspace) error {
 	currentTfVersion, err := workspace.StateVersion()
 	if err != nil {

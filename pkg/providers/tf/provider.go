@@ -45,6 +45,7 @@ type JobRunner interface {
 	Wait(ctx context.Context, id string) error
 	Show(ctx context.Context, id string) (string, error)
 	Upgrade(ctx context.Context, id string) error
+	UpgradeAvailable(id string) (bool, error)
 }
 
 // NewTerraformProvider creates a new ServiceProvider backed by Terraform module definitions for provision and bind.
@@ -250,6 +251,10 @@ func (provider *terraformProvider) Upgrade(ctx context.Context, tfID string, vc 
 	}
 
 	return provider.jobRunner.Wait(ctx, tfID)
+}
+
+func (provider *terraformProvider) UpgradeAvailable(tfID string) (bool, error) {
+	return provider.jobRunner.UpgradeAvailable(tfID)
 }
 
 // Deprovision performs a terraform destroy on the instance.
