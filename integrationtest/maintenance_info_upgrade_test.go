@@ -72,7 +72,7 @@ var _ = Describe("Terraform binding upgrade on instance update", func() {
 
 	Context("TF Upgrades are enabled", func() {
 		BeforeEach(func() {
-			mi = &domain.MaintenanceInfo{Version: "0.2.0"}
+			mi = &domain.MaintenanceInfo{Version: "1.1.6"}
 
 			miLower = &domain.MaintenanceInfo{Version: "0.1.0"}
 
