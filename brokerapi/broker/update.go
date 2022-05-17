@@ -52,6 +52,8 @@ func (broker *ServiceBroker) Update(ctx context.Context, instanceID string, deta
 	operation, err := decider.DecideOperation(brokerService, details)
 	if operation == decider.Upgrade {
 		return domain.UpdateServiceSpec{IsAsync: true}, broker.upgrade(ctx, instanceID, details, asyncAllowed)
+	} else if operation == decider.Failed {
+		return domain.UpdateServiceSpec{}, err
 	}
 
 	parsedDetails, err := paramparser.ParseUpdateDetails(details)

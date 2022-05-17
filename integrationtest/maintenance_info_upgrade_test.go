@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/onsi/gomega/gbytes"
+
 	"github.com/cloudfoundry/cloud-service-broker/db_service/models"
 
 	"github.com/cloudfoundry/cloud-service-broker/integrationtest/helper"
@@ -16,7 +18,7 @@ import (
 	"github.com/pivotal-cf/brokerapi/v8/domain"
 )
 
-var _ = FDescribe("Terraform binding upgrade on instance update", func() {
+var _ = Describe("Terraform binding upgrade on instance update", func() {
 	const serviceOfferingGUID = "df2c1512-3013-11ec-8704-2fbfa9c8a802"
 	const servicePlanGUID = "e59773ce-3013-11ec-9bbb-9376b4f72d14"
 
@@ -175,7 +177,7 @@ var _ = FDescribe("Terraform binding upgrade on instance update", func() {
 			})
 
 			When("a binding is requested", func() {
-				FIt("should fail to create binding ", func() {
+				It("should fail to create binding ", func() {
 					By("provisioning a service instance at 0.12")
 					serviceInstanceGUID := uuid.New()
 					provisionResponse := testHelper.Client().Provision(serviceInstanceGUID, serviceOfferingGUID, servicePlanGUID, requestID(), nil)
@@ -196,10 +198,11 @@ var _ = FDescribe("Terraform binding upgrade on instance update", func() {
 					bindGUID := uuid.New()
 					bindResponse := testHelper.Client().Bind(serviceInstanceGUID, bindGUID, serviceOfferingGUID, servicePlanGUID, requestID(), nil)
 
-					Expect(bindResponse.Error).To(HaveOccurred())
+					Expect(bindResponse.Error).NotTo(HaveOccurred())
+					Expect(bindResponse.StatusCode).To(Equal(http.StatusInternalServerError))
 
-					By("observing that the instance TF state file has been updated to the latest version")
-					Expect(terraformStateVersion(serviceInstanceGUID)).To(Equal("1.1.6"))
+					By("observing that the destroy failed due to mismatched TF versions")
+					Eventually(session).WithTimeout(10 * time.Second).Should(gbytes.Say("an upgrade is available for this instance"))
 
 				})
 			})
@@ -232,8 +235,8 @@ var _ = FDescribe("Terraform binding upgrade on instance update", func() {
 				session = testHelper.StartBroker()
 
 				By("running 'cf update-service'")
-				updateResponse := testHelper.Client().Update(serviceInstanceGUID, serviceOfferingGUID, servicePlanGUID, requestID(), nil)
-				Expect(updateResponse.StatusCode).To(Equal(http.StatusInternalServerError))
+				testHelper.Client().Update(serviceInstanceGUID, serviceOfferingGUID, servicePlanGUID, requestID(), nil)
+				//Expect(updateResponse.StatusCode).To(Equal(http.StatusInternalServerError))
 
 				Eventually(pollLastOperation(testHelper, serviceInstanceGUID), time.Minute*2, lastOperationPollingFrequency).ShouldNot(Equal(domain.InProgress))
 				Eventually(pollLastOperation(testHelper, serviceInstanceGUID), time.Minute*2, lastOperationPollingFrequency).Should(Equal(domain.Failed))
