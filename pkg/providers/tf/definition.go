@@ -329,7 +329,7 @@ func (plan *TfServiceDefinitionV1Plan) ToPlan(tfBinContext executor.TFBinariesCo
 	var maintenanceInfo domain.MaintenanceInfo
 	if viper.GetBool(TfUpgradeEnabled) {
 		maintenanceInfo = domain.MaintenanceInfo{
-			Version: tfBinContext.DefaultTfVersion.String(),
+			Version:     tfBinContext.DefaultTfVersion.String(),
 			Description: fmt.Sprintf(`This upgrade provides support for latest TF version %s. The upgrade operation will take a while and all instances and bindings will be updated.`, tfBinContext.DefaultTfVersion),
 		}
 	}
