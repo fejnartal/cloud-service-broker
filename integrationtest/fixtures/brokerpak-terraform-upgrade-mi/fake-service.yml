@@ -11,6 +11,8 @@ plans:
     id: e59773ce-3013-11ec-9bbb-9376b4f72d14
     description: First plan
     display_name: First
+    maintenance_info:
+      version: "0.2.0"
 provision:
   template_refs:
     main: fake-provision.tf

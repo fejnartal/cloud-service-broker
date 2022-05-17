@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/spf13/viper"
+
 	"github.com/cloudfoundry/cloud-service-broker/brokerapi/broker/decider"
 
 	"code.cloudfoundry.org/lager"
@@ -15,6 +17,10 @@ import (
 	"github.com/cloudfoundry/cloud-service-broker/utils/request"
 	"github.com/pivotal-cf/brokerapi/v8/domain"
 	"github.com/pivotal-cf/brokerapi/v8/domain/apiresponses"
+)
+
+const (
+	TfUpgradeEnabled = "brokerpak.terraform.upgrades.enabled"
 )
 
 var ErrNonUpdatableParameter = apiresponses.NewFailureResponse(errors.New("attempt to update parameter that may result in service instance re-creation and data loss"), http.StatusBadRequest, "prohibited")
@@ -49,13 +55,14 @@ func (broker *ServiceBroker) Update(ctx context.Context, instanceID string, deta
 
 	// Decide here?
 
-	operation, err := decider.DecideOperation(brokerService, details)
-	if operation == decider.Upgrade {
-		return domain.UpdateServiceSpec{IsAsync: true}, broker.upgrade(ctx, instanceID, details, asyncAllowed)
-	} else if operation == decider.Failed {
-		return domain.UpdateServiceSpec{}, err
+	if viper.GetBool(TfUpgradeEnabled) {
+		operation, err := decider.DecideOperation(brokerService, details)
+		if operation == decider.Upgrade {
+			return domain.UpdateServiceSpec{IsAsync: true}, broker.upgrade(ctx, instanceID, details, asyncAllowed)
+		} else if operation == decider.Failed {
+			return domain.UpdateServiceSpec{}, err
+		}
 	}
-
 	parsedDetails, err := paramparser.ParseUpdateDetails(details)
 	if err != nil {
 		return domain.UpdateServiceSpec{}, ErrInvalidUserInput

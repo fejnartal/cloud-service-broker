@@ -107,7 +107,7 @@ var _ = Describe("Terraform binding upgrade on instance update", func() {
 
 					By("updating the brokerpak and restarting the broker")
 					session.Terminate()
-					testHelper.BuildBrokerpak(testHelper.OriginalDir, "fixtures", "brokerpak-terraform-upgrade")
+					testHelper.BuildBrokerpak(testHelper.OriginalDir, "fixtures", "brokerpak-terraform-upgrade-mi")
 
 					session = testHelper.StartBroker("TERRAFORM_UPGRADES_ENABLED=true")
 
@@ -153,7 +153,7 @@ var _ = Describe("Terraform binding upgrade on instance update", func() {
 
 					By("updating the brokerpak and restarting the broker")
 					session.Terminate()
-					testHelper.BuildBrokerpak(testHelper.OriginalDir, "fixtures", "brokerpak-terraform-upgrade")
+					testHelper.BuildBrokerpak(testHelper.OriginalDir, "fixtures", "brokerpak-terraform-upgrade-mi")
 
 					session = testHelper.StartBroker("TERRAFORM_UPGRADES_ENABLED=true")
 
@@ -190,7 +190,7 @@ var _ = Describe("Terraform binding upgrade on instance update", func() {
 
 					By("updating the brokerpak and restarting the broker")
 					session.Terminate()
-					testHelper.BuildBrokerpak(testHelper.OriginalDir, "fixtures", "brokerpak-terraform-upgrade")
+					testHelper.BuildBrokerpak(testHelper.OriginalDir, "fixtures", "brokerpak-terraform-upgrade-mi")
 
 					session = testHelper.StartBroker("TERRAFORM_UPGRADES_ENABLED=true")
 
