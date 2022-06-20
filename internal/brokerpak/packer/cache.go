@@ -6,9 +6,21 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 
 	cp "github.com/otiai10/copy"
+	"github.com/spf13/viper"
 )
+
+const (
+	userHomeDir  = "user.home.dir"
+	pakCachePath = "pak.cache_path"
+)
+
+func init() {
+	viper.BindEnv(userHomeDir, "HOME")
+	viper.BindEnv(pakCachePath, "PAK_BUILD_CACHE_PATH")
+}
 
 func copyFromCache(cachePath string, source string, destination string) bool {
 	if cachePath == "" {
@@ -39,7 +51,8 @@ func buildCacheKey(cachePath string, source string) string {
 	return path.Join(cachePath, fmt.Sprintf("%x", md5.Sum([]byte(source))))
 }
 
-func cachedFetchFile(getter func(source string, destination string) error, source, destination, cachePath string) error {
+func cachedFetchFile(getter func(source string, destination string) error, source, destination string) error {
+	cachePath := readCachePath()
 	if cachePath == "" {
 		return getter(source, destination)
 	}
@@ -53,4 +66,15 @@ func cachedFetchFile(getter func(source string, destination string) error, sourc
 	}
 	populateCache(cachePath, source, destination)
 	return nil
+}
+
+func readCachePath() string {
+	switch {
+	case viper.IsSet(pakCachePath):
+		return viper.GetString(pakCachePath)
+	case viper.IsSet(userHomeDir):
+		return filepath.Join(viper.GetString(userHomeDir), ".csb-pak-cache")
+	default:
+		return ""
+	}
 }

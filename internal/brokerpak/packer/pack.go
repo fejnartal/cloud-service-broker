@@ -22,7 +22,7 @@ import (
 
 const manifestName = "manifest.yml"
 
-func Pack(m *manifest.Manifest, base, dest, cachePath string, includeSource bool) error {
+func Pack(m *manifest.Manifest, base, dest string, includeSource bool) error {
 	// NOTE: we use "log" rather than Lager because this is used by the CLI and
 	// needs to be human-readable rather than JSON.
 	switch base {
@@ -41,13 +41,13 @@ func Pack(m *manifest.Manifest, base, dest, cachePath string, includeSource bool
 
 	if includeSource {
 		log.Println("Packing sources...")
-		if err := packSources(m, dir, cachePath); err != nil {
+		if err := packSources(m, dir); err != nil {
 			return err
 		}
 	}
 
 	log.Println("Packing binaries...")
-	if err := packBinaries(m, dir, cachePath); err != nil {
+	if err := packBinaries(m, dir); err != nil {
 		return err
 	}
 
@@ -60,7 +60,7 @@ func Pack(m *manifest.Manifest, base, dest, cachePath string, includeSource bool
 	return zippy.Archive(dir, dest)
 }
 
-func packSources(m *manifest.Manifest, tmp string, cachePath string) error {
+func packSources(m *manifest.Manifest, tmp string) error {
 	packSource := func(source, name string) error {
 		if source == "" {
 			return nil
@@ -68,7 +68,7 @@ func packSources(m *manifest.Manifest, tmp string, cachePath string) error {
 		destination := filepath.Join(tmp, "src", name+".zip")
 
 		log.Println("\t", source, "->", destination)
-		return cachedFetchFile(fetcher.FetchArchive, source, destination, cachePath)
+		return cachedFetchFile(fetcher.FetchArchive, source, destination)
 	}
 
 	for _, resource := range m.TerraformVersions {
@@ -94,25 +94,25 @@ func getAny(source, destination string) error {
 	return getter.GetAny(destination, source)
 }
 
-func packBinaries(m *manifest.Manifest, tmp string, cachePath string) error {
+func packBinaries(m *manifest.Manifest, tmp string) error {
 	for _, platform := range m.Platforms {
 		p := filepath.Join(tmp, "bin", platform.Os, platform.Arch)
 
 		for _, resource := range m.TerraformVersions {
 			log.Println("\t", brokerpakurl.URL("terraform", resource.Version.String(), resource.URLTemplate, platform), "->", filepath.Join(p, resource.Version.String()))
-			if err := cachedFetchFile(getAny, brokerpakurl.URL("terraform", resource.Version.String(), resource.URLTemplate, platform), filepath.Join(p, resource.Version.String()), cachePath); err != nil {
+			if err := cachedFetchFile(getAny, brokerpakurl.URL("terraform", resource.Version.String(), resource.URLTemplate, platform), filepath.Join(p, resource.Version.String())); err != nil {
 				return err
 			}
 		}
 		for _, resource := range m.TerraformProviders {
 			log.Println("\t", brokerpakurl.URL(resource.Name, resource.Version.String(), resource.URLTemplate, platform), "->", p)
-			if err := cachedFetchFile(getAny, brokerpakurl.URL(resource.Name, resource.Version.String(), resource.URLTemplate, platform), p, cachePath); err != nil {
+			if err := cachedFetchFile(getAny, brokerpakurl.URL(resource.Name, resource.Version.String(), resource.URLTemplate, platform), p); err != nil {
 				return err
 			}
 		}
 		for _, resource := range m.Binaries {
 			log.Println("\t", brokerpakurl.URL(resource.Name, resource.Version, resource.URLTemplate, platform), "->", p)
-			if err := cachedFetchFile(getAny, brokerpakurl.URL(resource.Name, resource.Version, resource.URLTemplate, platform), p, cachePath); err != nil {
+			if err := cachedFetchFile(getAny, brokerpakurl.URL(resource.Name, resource.Version, resource.URLTemplate, platform), p); err != nil {
 				return err
 			}
 		}

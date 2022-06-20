@@ -19,19 +19,11 @@ import (
 	"log"
 	"os"
 
-	"github.com/spf13/viper"
-
 	"github.com/cloudfoundry/cloud-service-broker/pkg/brokerpak"
 	"github.com/spf13/cobra"
 )
 
-const (
-	pakCachePath = "pak.cache_path"
-)
-
 func init() {
-	viper.BindEnv(pakCachePath, "PAK_BUILD_CACHE_PATH")
-
 	pakCmd := &cobra.Command{
 		Use:   "pak",
 		Short: "interact with user-defined service definition bundles",
@@ -112,7 +104,7 @@ dependencies, services it provides, and the contents.
 				log.Fatalf("error while obtaining the %q flag: %s", includeSourceFlag, err)
 			}
 
-			pakPath, err := brokerpak.Pack(directory, viper.GetString(pakCachePath), includeSource)
+			pakPath, err := brokerpak.Pack(directory, includeSource)
 			if err != nil {
 				log.Fatalf("error while packing %q: %v", directory, err)
 			}
@@ -187,7 +179,7 @@ dependencies, services it provides, and the contents.
 			}
 
 			// Edit the manifest to point to our local server
-			packname, err := brokerpak.Pack(td, "", false)
+			packname, err := brokerpak.Pack(td, false)
 			defer os.Remove(packname)
 			if err != nil {
 				log.Fatalf("couldn't pack brokerpak: %v", err)
