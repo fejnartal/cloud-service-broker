@@ -3,6 +3,8 @@ package tf
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
 
 	"github.com/hashicorp/go-version"
 
@@ -84,6 +86,14 @@ func (provider *TerraformProvider) performTerraformUpgrade(ctx context.Context, 
 		}
 		for _, targetTfVersion := range provider.tfBinContext.TfUpgradePath {
 			if currentTfVersion.LessThan(targetTfVersion) {
+				output, err := provider.VersionedInvoker(targetTfVersion).Plan(ctx, workspace)
+				provider.logger.Debug("upgrade-plan", correlation.ID(ctx), lager.Data{
+					"plan": output,
+				})
+				fmt.Printf("PLAN OUTPUT -----------> %v", output)
+				fmt.Printf("PLAN ERR -----------> %v", err)
+				log.Printf("PLAN OUTPUT -----------> %v", output)
+				log.Printf("PLAN ERR -----------> %v", err)
 				err = provider.VersionedInvoker(targetTfVersion).Apply(ctx, workspace)
 				if err != nil {
 					return err

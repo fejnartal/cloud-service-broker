@@ -52,8 +52,11 @@ func (cmd TerraformDefaultInvoker) Destroy(ctx context.Context, workspace worksp
 
 func (cmd TerraformDefaultInvoker) Plan(ctx context.Context, workspace workspace.Workspace) (executor.ExecutionOutput, error) {
 	return workspace.Execute(ctx, cmd.executor,
-		command.NewInit(cmd.pluginDirectory),
-		command.NewPlan())
+		append(
+			cmd.ReplacementCommands(),
+			command.NewInit(cmd.pluginDirectory),
+			command.NewPlan(),
+		)...)
 }
 
 func (cmd TerraformDefaultInvoker) Import(ctx context.Context, workspace workspace.Workspace, resources map[string]string) error {

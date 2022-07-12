@@ -2,6 +2,7 @@ package tf
 
 import (
 	"context"
+	"fmt"
 
 	"code.cloudfoundry.org/lager"
 	"github.com/cloudfoundry/cloud-service-broker/pkg/broker"
@@ -27,6 +28,8 @@ func (provider *TerraformProvider) GetImportedProperties(ctx context.Context, pl
 	}
 
 	tfHCL, err := provider.DefaultInvoker().Show(ctx, deployment.Workspace)
+	fmt.Printf("Terraform show: %v", tfHCL)
+	fmt.Printf("Terraform show error: %v", err)
 	if err != nil {
 		return map[string]interface{}{}, err
 	}

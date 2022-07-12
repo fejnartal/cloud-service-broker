@@ -316,6 +316,7 @@ func (workspace *TerraformWorkspace) Execute(ctx context.Context, terraformExecu
 		return executor.ExecutionOutput{}, err
 	}
 	var lastExecutionOutput executor.ExecutionOutput
+	fmt.Printf("\n\n\nWorkspace state --------> %v\n\n\n", string(workspace.State))
 
 	for _, command := range commands {
 		c := exec.Command("terraform", command.Command()...)
