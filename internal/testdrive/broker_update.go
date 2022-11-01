@@ -14,12 +14,15 @@ type updateConfig struct {
 	params          json.RawMessage
 	previousValues  domain.PreviousValues
 	maintenanceInfo *domain.MaintenanceInfo
+	servicePlanGUID string
 }
 
 type UpdateOption func(*updateConfig) error
 
 func (b *Broker) UpdateService(s ServiceInstance, opts ...UpdateOption) error {
-	var cfg updateConfig
+	cfg := updateConfig{
+		servicePlanGUID: s.ServicePlanGUID,
+	}
 	for _, o := range opts {
 		if err := o(&cfg); err != nil {
 			return err
@@ -28,7 +31,7 @@ func (b *Broker) UpdateService(s ServiceInstance, opts ...UpdateOption) error {
 
 	return steps.Sequentially(
 		func() error {
-			updateResponse := b.Client.Update(s.GUID, s.ServiceOfferingGUID, s.ServicePlanGUID, uuid.New(), cfg.params, cfg.previousValues, cfg.maintenanceInfo)
+			updateResponse := b.Client.Update(s.GUID, s.ServiceOfferingGUID, cfg.servicePlanGUID, uuid.New(), cfg.params, cfg.previousValues, cfg.maintenanceInfo)
 			switch {
 			case updateResponse.Error != nil:
 				return updateResponse.Error
@@ -73,6 +76,13 @@ func WithUpdatePreviousValues(v domain.PreviousValues) UpdateOption {
 func WithUpdateMaintenanceInfo(m domain.MaintenanceInfo) UpdateOption {
 	return func(cfg *updateConfig) error {
 		cfg.maintenanceInfo = &m
+		return nil
+	}
+}
+
+func WithUpdatePlan(servicePlanGUID string) UpdateOption {
+	return func(cfg *updateConfig) error {
+		cfg.servicePlanGUID = servicePlanGUID
 		return nil
 	}
 }

@@ -10,11 +10,6 @@ import (
 	"github.com/pivotal-cf/brokerapi/v8/domain"
 )
 
-const (
-	pollingInterval = time.Second
-	timeout         = 2 * time.Minute
-)
-
 func (b *Broker) LastOperation(serviceInstanceGUID string) (domain.LastOperation, error) {
 	lastOperationResponse := b.Client.LastOperation(serviceInstanceGUID, uuid.New())
 	switch {
@@ -39,12 +34,12 @@ func (b *Broker) LastOperationFinalState(serviceInstanceGUID string) (domain.Las
 		switch {
 		case err != nil:
 			return "", err
-		case time.Since(start) > timeout:
+		case time.Since(start) > time.Hour:
 			return "", fmt.Errorf("timed out waiting for last operation on service instance %q", serviceInstanceGUID)
 		case lastOperation.State == domain.Failed, lastOperation.State == domain.Succeeded:
 			return lastOperation.State, nil
 		default:
-			time.Sleep(pollingInterval)
+			time.Sleep(time.Second)
 		}
 	}
 }
